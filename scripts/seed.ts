@@ -2,6 +2,7 @@
 // usage: bun run scripts/seed.ts [--spike]
 
 const RUST_URL = process.env.INTERNAL_RUST_URL ?? 'http://localhost:3001'
+const DEVICE_AUTH_SECRET = process.env.DEVICE_AUTH_SECRET ?? 'change-me-device-ingest-secret'
 const isSpike = process.argv.includes('--spike')
 
 interface Sensor {
@@ -70,7 +71,11 @@ async function main() {
       const res = await fetch(`${RUST_URL}/internal/telemetry/ingest`, {
         method: 'POST',
         body: JSON.stringify(reading),
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-scemas-device-id': sensor.sensor_id,
+          'x-scemas-device-token': `${DEVICE_AUTH_SECRET}:${sensor.sensor_id}`,
+        },
       })
 
       if (res.ok) {

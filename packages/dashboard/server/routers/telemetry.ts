@@ -8,7 +8,10 @@ import { sensorReadings } from '@scemas/db/schema'
 import { desc, eq, and, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
-const RUST_URL = process.env.INTERNAL_RUST_URL ?? 'http://localhost:3001'
+import { buildDeviceAuthToken, getInternalRustUrl } from '../env'
+import { createDataDistributionManager } from '../data-distribution-manager'
+
+const RUST_URL = getInternalRustUrl()
 
 export const telemetryRouter = router({
   // IngestSensorStreams boundary: proxies to rust for pipe-and-filter demonstration
@@ -18,7 +21,11 @@ export const telemetryRouter = router({
       const res = await fetch(`${RUST_URL}/internal/telemetry/ingest`, {
         method: 'POST',
         body: JSON.stringify(input),
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-scemas-device-id': input.sensorId,
+          'x-scemas-device-token': buildDeviceAuthToken(input.sensorId),
+        },
       })
       if (!res.ok) {
         const err = await res.json()
@@ -47,10 +54,7 @@ export const telemetryRouter = router({
   // get latest reading per sensor (for dashboard map)
   getLatest: protectedProcedure
     .query(async ({ ctx }) => {
-      return ctx.db
-        .select()
-        .from(sensorReadings)
-        .orderBy(desc(sensorReadings.time))
-        .limit(100)
+      const manager = createDataDistributionManager(ctx.db)
+      return manager.getLatestSensorReadings(100)
     }),
 })

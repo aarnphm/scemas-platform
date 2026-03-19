@@ -1,11 +1,14 @@
+import { AuditLogList } from '@/components/admin/audit-log-list'
+
 // AlertAndAuditLogDB viewer (admin-only)
 export default function AuditPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">audit logs</h1>
-      <div className="rounded-lg border border-border bg-card p-4">
-        <p className="text-sm text-muted-foreground">audit log table: auth events, alert actions, config changes (phase 6)</p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        authentication events, device denials, alert actions, and permission changes land here
+      </p>
+      <AuditLogList />
     </div>
   )
 }
