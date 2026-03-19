@@ -31,7 +31,6 @@ async fn ingest_telemetry(
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     state.health.record_received();
 
-    // pipe-and-filter: validate + persist
     let reading = state.telemetry.ingest(reading).await.map_err(|e| {
         state.health.record_rejected();
         (
@@ -42,7 +41,6 @@ async fn ingest_telemetry(
 
     state.health.record_accepted();
 
-    // blackboard: evaluate rules against the new reading
     let mut alerting = state.alerting.write().await;
     match alerting.evaluate_reading(&reading).await {
         Ok(alerts) if !alerts.is_empty() => {

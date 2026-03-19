@@ -43,7 +43,6 @@ impl AlertingManager {
     }
 
     /// evaluate a reading against the blackboard's active rules
-    /// this is the core blackboard interaction: knowledge sources reading shared state
     pub async fn evaluate_reading(
         &mut self,
         reading: &IndividualSensorReading,
@@ -51,10 +50,7 @@ impl AlertingManager {
         let alerts = evaluator::evaluate(reading, &self.blackboard.active_rules);
 
         for alert in &alerts {
-            // post to blackboard (in-memory)
             self.blackboard.post_alert(alert.clone());
-
-            // persist to database
             self.persist_alert(alert).await?;
         }
 
@@ -81,7 +77,6 @@ impl AlertingManager {
     }
 }
 
-// internal row type for sqlx deserialization
 #[derive(sqlx::FromRow)]
 struct ThresholdRuleRow {
     id: Uuid,

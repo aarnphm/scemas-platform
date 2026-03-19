@@ -22,11 +22,9 @@ pub fn evaluate(reading: &IndividualSensorReading, rules: &[ThresholdRule]) -> V
 }
 
 fn matches_reading(rule: &ThresholdRule, reading: &IndividualSensorReading) -> bool {
-    // rule must match metric type
     if rule.metric_type != reading.metric_type {
         return false;
     }
-    // if rule specifies a zone, it must match
     if let Some(ref zone) = rule.zone {
         if zone != &reading.zone {
             return false;
@@ -62,7 +60,6 @@ fn create_alert(rule: &ThresholdRule, reading: &IndividualSensorReading) -> Aler
 
 fn classify_severity(rule: &ThresholdRule, reading: &IndividualSensorReading) -> Severity {
     let ratio = reading.value / rule.threshold_value;
-    // how far past the threshold determines severity
     if ratio > 1.5 {
         Severity::Critical
     } else if ratio > 1.2 {
@@ -102,7 +99,7 @@ mod tests {
     #[test]
     fn evaluate_fires_when_threshold_exceeded() {
         let rules = vec![sample_rule()];
-        let reading = sample_reading(40.0); // above 35.0 threshold
+        let reading = sample_reading(40.0);
         let alerts = evaluate(&reading, &rules);
         assert_eq!(alerts.len(), 1);
     }
@@ -110,14 +107,14 @@ mod tests {
     #[test]
     fn evaluate_does_not_fire_below_threshold() {
         let rules = vec![sample_rule()];
-        let reading = sample_reading(30.0); // below 35.0 threshold
+        let reading = sample_reading(30.0);
         let alerts = evaluate(&reading, &rules);
         assert!(alerts.is_empty());
     }
 
     #[test]
     fn evaluate_ignores_wrong_zone() {
-        let rules = vec![sample_rule()]; // zone: "downtown"
+        let rules = vec![sample_rule()];
         let mut reading = sample_reading(40.0);
         reading.zone = "west_mountain".into();
         let alerts = evaluate(&reading, &rules);

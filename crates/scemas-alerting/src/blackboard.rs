@@ -13,7 +13,6 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 /// shared state for the alerting subsystem
-/// this IS the blackboard: a data store that knowledge sources post to and read from
 pub struct Blackboard {
     pub active_rules: Vec<ThresholdRule>,
     pub active_alerts: HashMap<Uuid, Alert>,
