@@ -1,0 +1,21 @@
+{
+  "name": "scemas-platform",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "db:push": "bun --filter @scemas/db push",
+    "db:generate": "bun --filter @scemas/db generate",
+    "db:studio": "bun --filter @scemas/db studio",
+    "seed": "bun run scripts/seed.ts"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  }
+}

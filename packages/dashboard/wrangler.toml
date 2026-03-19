@@ -1,0 +1,13 @@
+name = "scemas-dashboard"
+main = ".open-next/worker.js"
+compatibility_date = "2025-05-05"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# uncomment when deploying with hyperdrive for postgres
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "<your-hyperdrive-config-id>"
