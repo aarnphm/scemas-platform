@@ -205,8 +205,7 @@ impl AccessManager {
             ));
         }
 
-        let expected_token = device_token(&request.device_id, &self.device_auth_secret);
-        if request.device_token != expected_token {
+        if request.device_token != self.device_auth_secret {
             self.insert_audit_log(
                 None,
                 "device.auth.failure",
@@ -419,8 +418,4 @@ fn device_status_label(status: &DeviceStatus) -> &'static str {
         DeviceStatus::Inactive => "inactive",
         DeviceStatus::Revoked => "revoked",
     }
-}
-
-fn device_token(device_id: &str, device_auth_secret: &str) -> String {
-    format!("{device_auth_secret}:{device_id}")
 }

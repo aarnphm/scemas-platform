@@ -1,6 +1,6 @@
 // MonitorSCEMASPlatformStatus boundary (DataDistributionManager)
-import { platformStatus } from '@scemas/db/schema'
-import { desc } from 'drizzle-orm'
+import { ingestionFailures, platformStatus } from '@scemas/db/schema'
+import { desc, eq } from 'drizzle-orm'
 
 import { getDb } from '@/server/cached'
 import { getInternalRustUrl } from '@/server/env'
@@ -13,9 +13,14 @@ type IngestionHealth = {
 
 export default async function HealthPage() {
   const db = getDb()
-  const [statusRows, ingestionHealth] = await Promise.all([
+  const [statusRows, failureRows, ingestionHealth] = await Promise.all([
     db.query.platformStatus.findMany({
       orderBy: [desc(platformStatus.time)],
+      limit: 10,
+    }),
+    db.query.ingestionFailures.findMany({
+      where: eq(ingestionFailures.status, 'pending'),
+      orderBy: [desc(ingestionFailures.createdAt)],
       limit: 10,
     }),
     fetchIngestionHealth(),
@@ -29,6 +34,29 @@ export default async function HealthPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           received {ingestionHealth.total_received}, accepted {ingestionHealth.total_accepted}, rejected {ingestionHealth.total_rejected}
         </p>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-4">
+        <h2 className="mb-4 text-sm font-medium">durable downstream failures</h2>
+        {failureRows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            no unresolved ingest failures are recorded
+          </p>
+        ) : (
+          <div className="space-y-3 text-sm">
+            {failureRows.map(row => (
+              <div className="rounded-md border border-border/60 p-3" key={row.id}>
+                <p className="font-medium">
+                  {row.stage} | {row.sensorId} | {row.metricType}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  zone {row.zone} | opened {row.createdAt.toLocaleString()}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">{row.error}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="rounded-lg border border-border bg-card p-4">

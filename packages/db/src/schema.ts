@@ -152,6 +152,8 @@ export const analytics = pgTable(
     metricType: text('metric_type').notNull(),
     aggregatedValue: doublePrecision('aggregated_value').notNull(),
     aggregationType: text('aggregation_type').notNull(),
+    sampleCount: integer('sample_count'),
+    sampleSum: doublePrecision('sample_sum'),
     time: timestamp('time', { withTimezone: true }).notNull(),
   },
   table => ({
@@ -166,6 +168,32 @@ export const analytics = pgTable(
       table.metricType,
       table.aggregationType,
       table.time,
+    ),
+  }),
+)
+
+export const ingestionFailures = pgTable(
+  'ingestion_failures',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    stage: text('stage').notNull(),
+    sensorId: text('sensor_id').notNull(),
+    metricType: text('metric_type').notNull(),
+    zone: text('zone').notNull(),
+    payload: jsonb('payload').notNull(),
+    error: text('error').notNull(),
+    status: text('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  table => ({
+    statusCreatedAtIdx: index('ingestion_failures_status_created_at_idx').on(
+      table.status,
+      table.createdAt,
+    ),
+    stageCreatedAtIdx: index('ingestion_failures_stage_created_at_idx').on(
+      table.stage,
+      table.createdAt,
     ),
   }),
 )

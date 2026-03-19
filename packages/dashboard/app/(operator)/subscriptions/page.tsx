@@ -1,5 +1,6 @@
 import { SubscriptionManager } from '@/components/operator/subscription-manager'
 import { getDb } from '@/server/cached'
+import { serverTrpc, HydrateClient } from '@/lib/trpc-server'
 
 // ManageAlertSubscriptions boundary (innovative feature)
 export default async function SubscriptionsPage() {
@@ -9,11 +10,15 @@ export default async function SubscriptionsPage() {
   })
   const availableZones = Array.from(new Set(devices.map(device => device.zone))).sort()
 
+  void serverTrpc.subscriptions.get.prefetch()
+
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">alert subscriptions</h1>
       <p className="text-sm text-muted-foreground">personalize which alerts you receive</p>
-      <SubscriptionManager availableZones={availableZones} />
+      <HydrateClient>
+        <SubscriptionManager availableZones={availableZones} />
+      </HydrateClient>
     </div>
   )
 }

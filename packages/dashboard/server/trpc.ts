@@ -40,6 +40,7 @@ const t = initTRPC.context<Context>().create({
 export const router = t.router
 export const publicProcedure = t.procedure
 export const middleware = t.middleware
+export const createCallerFactory = t.createCallerFactory
 
 // auth middleware: rejects if no user, narrows type so ctx.user is guaranteed non-null
 const enforceAuth = middleware(async ({ ctx, next }) => {

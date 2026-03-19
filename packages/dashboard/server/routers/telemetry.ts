@@ -24,7 +24,7 @@ export const telemetryRouter = router({
         headers: {
           'Content-Type': 'application/json',
           'x-scemas-device-id': input.sensorId,
-          'x-scemas-device-token': buildDeviceAuthToken(input.sensorId),
+          'x-scemas-device-token': buildDeviceAuthToken(),
         },
       })
       if (!res.ok) {

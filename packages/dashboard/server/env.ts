@@ -28,6 +28,6 @@ export function getDeviceAuthSecret(): string {
   return deviceAuthSecret
 }
 
-export function buildDeviceAuthToken(deviceId: string): string {
-  return `${getDeviceAuthSecret()}:${deviceId}`
+export function buildDeviceAuthToken(): string {
+  return getDeviceAuthSecret()
 }

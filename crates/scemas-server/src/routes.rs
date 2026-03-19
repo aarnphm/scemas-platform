@@ -178,13 +178,15 @@ async fn ingest_telemetry(
         Ok(alerts) if !alerts.is_empty() => {
             tracing::info!(count = alerts.len(), "alerts triggered");
         }
-        Err(e) => {
-            tracing::error!("alert evaluation failed: {e}");
+        Err(error) => {
+            record_ingestion_failure(&state, "alerting", &reading, &error).await;
+            tracing::error!("alert evaluation failed: {error}");
         }
         _ => {}
     }
 
     if let Err(error) = state.distribution.aggregate_reading(&reading).await {
+        record_ingestion_failure(&state, "aggregation", &reading, &error).await;
         tracing::error!("analytics materialization failed: {error}");
     }
 
@@ -195,6 +197,7 @@ async fn ingest_telemetry(
         .record_ingestion_health(snapshot.total_received, snapshot.total_rejected, latency_ms)
         .await
     {
+        record_ingestion_failure(&state, "health_snapshot", &reading, &error).await;
         tracing::error!("platform status update failed: {error}");
     }
 
@@ -251,4 +254,24 @@ fn required_header(headers: &HeaderMap, name: &'static str) -> Result<String> {
         })?;
 
     Ok(value.to_owned())
+}
+
+async fn record_ingestion_failure(
+    state: &AppState,
+    stage: &str,
+    reading: &IndividualSensorReading,
+    error: &scemas_core::error::Error,
+) {
+    if let Err(record_error) = state
+        .distribution
+        .record_ingestion_failure(stage, reading, &error.to_string())
+        .await
+    {
+        tracing::error!(
+            stage,
+            original_error = %error,
+            record_error = %record_error,
+            "failed to record ingestion failure"
+        );
+    }
 }

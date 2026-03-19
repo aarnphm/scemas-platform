@@ -74,7 +74,7 @@ async function main() {
         headers: {
           'Content-Type': 'application/json',
           'x-scemas-device-id': sensor.sensor_id,
-          'x-scemas-device-token': `${DEVICE_AUTH_SECRET}:${sensor.sensor_id}`,
+          'x-scemas-device-token': DEVICE_AUTH_SECRET,
         },
       })
 
