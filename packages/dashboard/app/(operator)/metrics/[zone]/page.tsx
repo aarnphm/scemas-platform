@@ -21,8 +21,8 @@ export default async function ZoneMetricsPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">{zone.replaceAll('_', ' ')} metrics</h1>
-      <p className="text-sm text-muted-foreground">
+      <h1 className="text-xl font-semibold text-balance">{zone.replaceAll('_', ' ')} metrics</h1>
+      <p className="text-sm text-muted-foreground text-pretty">
         zone drill-down for the four sensor subagents. this is the operator view, so raw zone-level telemetry remains visible.
       </p>
       <MetricSubagentPanels panels={panels} showZoneLinks={false} />

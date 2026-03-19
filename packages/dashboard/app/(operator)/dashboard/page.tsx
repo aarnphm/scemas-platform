@@ -1,5 +1,5 @@
 // CityOperatorAgent main dashboard view
-// shows: map with sensors, metric cards, active alert list
+// shows: metric KPIs, sensor feed, active alerts
 // this is the primary Presentation component for the operator agent
 
 import { Suspense } from 'react'
@@ -12,20 +12,22 @@ import { Spinner } from '@/components/ui/spinner'
 export default function OperatorDashboard() {
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">operator dashboard</h1>
+      <h1 className="text-xl font-semibold text-balance">operator dashboard</h1>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Suspense fallback={<SensorCoverageSkeleton />}>
-          <SensorCoveragePanel />
-        </Suspense>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Suspense fallback={<MetricCardsSkeleton />}>
           <MetricCards />
         </Suspense>
       </div>
 
-      <Suspense fallback={<AlertsSkeleton />}>
-        <ActiveAlertsPanel />
-      </Suspense>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Suspense fallback={<SensorCoverageSkeleton />}>
+          <SensorCoveragePanel />
+        </Suspense>
+        <Suspense fallback={<AlertsSkeleton />}>
+          <ActiveAlertsPanel />
+        </Suspense>
+      </div>
     </div>
   )
 }
@@ -36,15 +38,19 @@ async function SensorCoveragePanel() {
   const coveredZones = new Set(latestReadings.map(reading => reading.zone)).size
 
   return (
-    <div className="col-span-2 h-96 rounded-lg border border-border bg-card p-4">
-      <h2 className="text-sm font-medium">live sensor coverage</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {latestReadings.length} latest sensor streams across {coveredZones} zones
+    <div className="rounded-lg border border-border bg-card p-4">
+      <h2 className="text-sm font-medium">live sensor feed</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        <span className="font-mono tabular-nums">{latestReadings.length}</span> streams across{' '}
+        <span className="font-mono tabular-nums">{coveredZones}</span> zones
       </p>
-      <div className="mt-6 space-y-2 text-sm text-muted-foreground">
-        {latestReadings.slice(0, 8).map(reading => (
-          <p key={`${reading.sensorId}-${reading.time.toISOString()}`}>
-            {reading.sensorId}: {reading.metricType} {reading.value} in {reading.zone}
+      <div className="mt-4 max-h-80 space-y-1.5 overflow-y-auto text-sm text-muted-foreground">
+        {latestReadings.slice(0, 12).map(reading => (
+          <p className="flex items-baseline justify-between gap-2" key={`${reading.sensorId}-${reading.time.toISOString()}`}>
+            <span className="truncate">{reading.sensorId}</span>
+            <span className="shrink-0 font-mono tabular-nums">
+              {reading.metricType.replaceAll('_', ' ')} <span className="text-foreground">{reading.value}</span>
+            </span>
           </p>
         ))}
       </div>
@@ -58,14 +64,14 @@ async function MetricCards() {
   const metricSummary = summarizeLatestMetrics(latestReadings)
 
   return (
-    <div className="space-y-4">
+    <>
       {metricSummary.map(metric => (
         <div key={metric.key} className="rounded-lg border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground">{metric.label}</p>
-          <p className="font-mono text-2xl">{metric.value}</p>
+          <p className="font-mono text-2xl tabular-nums">{metric.value}</p>
         </div>
       ))}
-    </div>
+    </>
   )
 }
 
@@ -74,20 +80,27 @@ async function ActiveAlertsPanel() {
   const activeAlerts = await db.query.alerts.findMany({
     where: eq(alerts.status, 'active'),
     orderBy: [desc(alerts.createdAt)],
-    limit: 5,
+    limit: 8,
   })
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
-      <h2 className="mb-4 text-sm font-medium">active alerts</h2>
+      <h2 className="text-sm font-medium">active alerts</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        <span className="font-mono tabular-nums">{activeAlerts.length}</span> unresolved
+      </p>
       {activeAlerts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">no active alerts right now</p>
+        <p className="mt-4 text-sm text-muted-foreground">no active alerts right now</p>
       ) : (
-        <div className="space-y-2 text-sm">
+        <div className="mt-4 max-h-80 space-y-1.5 overflow-y-auto text-sm">
           {activeAlerts.map(alert => (
-            <p key={alert.id}>
-              {alert.zone}: {alert.metricType} at {alert.triggeredValue} ({alert.status})
-            </p>
+            <div className="flex items-baseline justify-between gap-2 rounded-md border border-border/60 px-3 py-2" key={alert.id}>
+              <span className="truncate font-medium">{alert.zone}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {alert.metricType.replaceAll('_', ' ')} at{' '}
+                <span className="font-mono tabular-nums">{alert.triggeredValue}</span>
+              </span>
+            </div>
           ))}
         </div>
       )}
@@ -97,10 +110,10 @@ async function ActiveAlertsPanel() {
 
 function SensorCoverageSkeleton() {
   return (
-    <div className="col-span-2 flex h-96 items-center justify-center rounded-lg border border-border bg-card p-4">
+    <div className="flex min-h-48 items-center justify-center rounded-lg border border-border bg-card p-4">
       <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
         <Spinner />
-        loading sensor coverage
+        loading sensor feed
       </span>
     </div>
   )
@@ -108,19 +121,21 @@ function SensorCoverageSkeleton() {
 
 function MetricCardsSkeleton() {
   return (
-    <div className="space-y-4">
+    <>
       {Array.from({ length: 4 }, (_, index) => (
-        <div key={index} className="h-20 animate-pulse rounded-lg border border-border bg-card p-4" />
+        <div key={index} className="h-20 animate-pulse rounded-lg border border-border bg-card" />
       ))}
-    </div>
+    </>
   )
 }
 
 function AlertsSkeleton() {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-      <Spinner />
-      loading alerts
+    <div className="flex min-h-48 items-center justify-center rounded-lg border border-border bg-card p-4">
+      <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+        <Spinner />
+        loading alerts
+      </span>
     </div>
   )
 }

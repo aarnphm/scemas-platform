@@ -7,8 +7,8 @@ export default async function RulesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">threshold rules</h1>
-      <p className="text-sm text-muted-foreground">
+      <h1 className="text-xl font-semibold text-balance">threshold rules</h1>
+      <p className="text-sm text-muted-foreground text-pretty">
         define, pause, and retire the rulebook that feeds the blackboard alerting flow
       </p>
       <HydrateClient>

@@ -76,7 +76,15 @@ impl DataDistributionManager {
         .bind(latency_ms)
         .bind(error_rate)
         .execute(&self.db)
-        .await?;
+        .await
+        .inspect_err(|_| {
+            let _ = self.last_health_snapshot_at.compare_exchange(
+                now,
+                previous,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            );
+        })?;
 
         Ok(())
     }

@@ -17,8 +17,8 @@ const protectedPaths = ['/dashboard', '/alerts', '/subscriptions', '/metrics']
 // routes that require admin role
 const adminPaths = ['/rules', '/users', '/health', '/audit']
 
-// public paths (no auth needed)
-const publicPaths = ['/login', '/signup', '/display', '/api']
+const publicPaths = ['/sign-in', '/sign-up', '/display', '/api']
+const authPaths = ['/sign-in', '/sign-up']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -30,14 +30,14 @@ export async function middleware(request: NextRequest) {
     if (isPublicPath) {
       return NextResponse.next()
     }
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/sign-in', request.url))
   }
 
   if (!token) {
     if (isPublicPath) {
       return NextResponse.next()
     }
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/sign-in', request.url))
   }
 
   const session = await verifySessionToken(token, jwtSecret)
@@ -45,10 +45,10 @@ export async function middleware(request: NextRequest) {
     if (isPublicPath) {
       return NextResponse.next()
     }
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/sign-in', request.url))
   }
 
-  if (pathname === '/login' || pathname === '/signup') {
+  if (authPaths.some(path => pathname.startsWith(path))) {
     return NextResponse.redirect(new URL(sessionLandingPath(session.role), request.url))
   }
 

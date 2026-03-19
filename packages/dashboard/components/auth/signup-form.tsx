@@ -108,7 +108,7 @@ export function SignupForm() {
 
       <p className="text-sm text-muted-foreground">
         already have an account?{' '}
-        <Link className="text-foreground underline underline-offset-4" href="/login">
+        <Link className="text-foreground underline underline-offset-4" href="/sign-in">
           sign in
         </Link>
       </p>

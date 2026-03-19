@@ -7,8 +7,8 @@ export default async function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">user management</h1>
-      <p className="text-sm text-muted-foreground">
+      <h1 className="text-xl font-semibold text-balance">user management</h1>
+      <p className="text-sm text-muted-foreground text-pretty">
         manage which dashboard each account can reach and which control surfaces they can touch
       </p>
       <HydrateClient>

@@ -89,7 +89,7 @@ export function LoginForm() {
 
       <p className="text-sm text-muted-foreground">
         need an account?{' '}
-        <Link className="text-foreground underline underline-offset-4" href="/signup">
+        <Link className="text-foreground underline underline-offset-4" href="/sign-up">
           create one
         </Link>
       </p>

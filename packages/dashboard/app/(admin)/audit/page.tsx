@@ -7,8 +7,8 @@ export default async function AuditPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">audit logs</h1>
-      <p className="text-sm text-muted-foreground">
+      <h1 className="text-xl font-semibold text-balance">audit logs</h1>
+      <p className="text-sm text-muted-foreground text-pretty">
         authentication events, device denials, alert actions, and permission changes land here
       </p>
       <HydrateClient>

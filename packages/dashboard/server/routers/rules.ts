@@ -5,7 +5,11 @@ import { router, adminProcedure } from '../trpc'
 import { thresholdRules } from '@scemas/db/schema'
 import { desc } from 'drizzle-orm'
 import { z } from 'zod'
-import { CreateThresholdRuleSchema, ThresholdRuleSchema } from '@scemas/types'
+import {
+  CreateThresholdRuleSchema,
+  ThresholdRuleSchema,
+  type ThresholdRule,
+} from '@scemas/types'
 
 import {
   callRustEndpoint,
@@ -16,12 +20,46 @@ const SuccessResponseSchema = z.object({
   success: z.literal(true),
 })
 
+const LegacyRustThresholdRuleSchema = z.object({
+  id: z.string().uuid(),
+  metric_type: z.enum(['temperature', 'humidity', 'air_quality', 'noise_level']),
+  threshold_value: z.number(),
+  comparison: z.enum(['gt', 'lt', 'gte', 'lte']),
+  zone: z.string().nullable(),
+  rule_status: z.enum(['active', 'inactive']),
+}).transform(rule => ({
+  id: rule.id,
+  metricType: rule.metric_type,
+  thresholdValue: rule.threshold_value,
+  comparison: rule.comparison,
+  zone: rule.zone,
+  ruleStatus: rule.rule_status,
+}))
+
+const RustThresholdRuleSchema = z.union([
+  ThresholdRuleSchema,
+  LegacyRustThresholdRuleSchema,
+])
+
+function normalizeThresholdRule(rule: {
+  id: string
+  metricType: string
+  thresholdValue: number
+  comparison: string
+  zone: string | null
+  ruleStatus: string
+}): ThresholdRule {
+  return ThresholdRuleSchema.parse(rule)
+}
+
 export const rulesRouter = router({
   list: adminProcedure
     .query(async ({ ctx }) => {
-      return ctx.db.query.thresholdRules.findMany({
+      const rules = await ctx.db.query.thresholdRules.findMany({
         orderBy: [desc(thresholdRules.createdAt)],
       })
+
+      return rules.map(rule => normalizeThresholdRule(rule))
     }),
 
   create: adminProcedure
@@ -42,7 +80,7 @@ export const rulesRouter = router({
         })
       }
 
-      const parsed = ThresholdRuleSchema.safeParse(data)
+      const parsed = RustThresholdRuleSchema.safeParse(data)
       if (!parsed.success) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',

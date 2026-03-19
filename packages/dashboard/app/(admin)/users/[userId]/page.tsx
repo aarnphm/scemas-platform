@@ -28,7 +28,7 @@ export default async function UserDetailPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">user detail</h1>
+      <h1 className="text-xl font-semibold text-balance">user detail</h1>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
         <div className="rounded-lg border border-border bg-card p-4">
           <dl className="space-y-3 text-sm">

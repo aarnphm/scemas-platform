@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { type FormEvent, useState } from 'react'
-import type { Comparison, MetricType } from '@scemas/types'
+import type { Comparison, MetricType, ThresholdRule } from '@scemas/types'
 
+import { ListPagination } from '@/components/list-pagination'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
@@ -11,14 +12,19 @@ import { trpc } from '@/lib/trpc'
 
 const metricTypes = ['temperature', 'humidity', 'air_quality', 'noise_level'] as const
 const comparisons = ['gt', 'gte', 'lt', 'lte'] as const
+const PAGE_SIZE = 10
 
 export function RulesManager() {
   const utils = trpc.useUtils()
+  const [page, setPage] = useState(0)
   const [submissionError, setSubmissionError] = useState<string | null>(null)
   const rulesQuery = trpc.rules.list.useQuery()
   const createRule = trpc.rules.create.useMutation({
-    onSuccess: async () => {
+    onSuccess: async createdRule => {
       setSubmissionError(null)
+      utils.rules.list.setData(undefined, currentRules =>
+        prependRule(currentRules, createdRule),
+      )
       await utils.rules.list.invalidate()
     },
     onError: error => {
@@ -26,13 +32,31 @@ export function RulesManager() {
     },
   })
   const updateRule = trpc.rules.update.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
+      setSubmissionError(null)
+      utils.rules.list.setData(undefined, currentRules =>
+        currentRules?.map(rule =>
+          rule.id === variables.id
+            ? { ...rule, ruleStatus: variables.ruleStatus }
+            : rule,
+        ) ?? currentRules,
+      )
       await utils.rules.list.invalidate()
+    },
+    onError: error => {
+      setSubmissionError(error.message)
     },
   })
   const deleteRule = trpc.rules.delete.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
+      setSubmissionError(null)
+      utils.rules.list.setData(undefined, currentRules =>
+        currentRules?.filter(rule => rule.id !== variables.id) ?? currentRules,
+      )
       await utils.rules.list.invalidate()
+    },
+    onError: error => {
+      setSubmissionError(error.message)
     },
   })
 
@@ -97,6 +121,12 @@ export function RulesManager() {
   }
 
   const rules = rulesQuery.data ?? []
+  const totalPages = Math.ceil(rules.length / PAGE_SIZE)
+  const safePage = Math.min(page, Math.max(0, totalPages - 1))
+  const pageRules = rules.slice(
+    safePage * PAGE_SIZE,
+    (safePage + 1) * PAGE_SIZE,
+  )
 
   return (
     <div className="space-y-6">
@@ -135,19 +165,21 @@ export function RulesManager() {
           active rulebook
         </div>
         {rules.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted-foreground">
-            no threshold rules have been defined yet
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground text-pretty">
+            no threshold rules have been defined yet. use the form above to create one.
           </p>
         ) : (
+          <>
           <div className="divide-y divide-border">
-            {rules.map(rule => (
+            {pageRules.map(rule => (
               <div className="flex flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between" key={rule.id}>
                 <div className="space-y-1">
                   <p className="text-sm font-medium">
                     <Link className="underline-offset-4 hover:underline" href={`/rules/${rule.id}`}>
                       {rule.metricType.replaceAll('_', ' ')}
                     </Link>{' '}
-                    {rule.comparison} {rule.thresholdValue}
+                    {rule.comparison}{' '}
+                      <span className="font-mono tabular-nums">{rule.thresholdValue}</span>
                   </p>
                   <p className="text-xs text-muted-foreground">
                     scope: {rule.zone ?? 'all zones'} | status: {rule.ruleStatus}
@@ -179,6 +211,14 @@ export function RulesManager() {
               </div>
             ))}
           </div>
+          <ListPagination
+            onPageChange={setPage}
+            page={safePage}
+            pageSize={PAGE_SIZE}
+            totalItems={rules.length}
+            totalPages={totalPages}
+          />
+          </>
         )}
       </div>
     </div>
@@ -191,4 +231,15 @@ function isMetricType(value: string): value is MetricType {
 
 function isComparison(value: string): value is Comparison {
   return comparisons.some(comparison => comparison === value)
+}
+
+function prependRule(
+  currentRules: ThresholdRule[] | undefined,
+  createdRule: ThresholdRule,
+): ThresholdRule[] {
+  if (!currentRules) {
+    return [createdRule]
+  }
+
+  return [createdRule, ...currentRules.filter(rule => rule.id !== createdRule.id)]
 }

@@ -9,13 +9,15 @@
 use chrono::Utc;
 use scemas_core::error::{Error, Result};
 use scemas_core::models::{
-    Alert, AlertStatus, Comparison, IndividualSensorReading, MetricType, RuleStatus, ThresholdRule,
+    Alert, AlertStatus, AlertSubscription, Comparison, IndividualSensorReading, MetricType,
+    RuleStatus, Severity, ThresholdRule,
 };
 use sqlx::PgPool;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::blackboard::Blackboard;
+use crate::dispatcher;
 use crate::evaluator;
 use crate::lifecycle;
 
@@ -66,6 +68,11 @@ impl AlertingManager {
         let mut blackboard = self.blackboard.write().await;
         for alert in &alerts {
             blackboard.post_alert(alert.clone());
+        }
+
+        // knowledge source 3: dispatcher — notify matching subscribers (best-effort)
+        if !alerts.is_empty() {
+            self.dispatch_alerts(&alerts).await.ok();
         }
 
         Ok(alerts)
@@ -265,6 +272,39 @@ impl AlertingManager {
         Ok(())
     }
 
+    async fn load_subscriptions(&self) -> Result<Vec<AlertSubscription>> {
+        let rows: Vec<AlertSubscriptionRow> = sqlx::query_as(
+            "SELECT id, user_id, metric_types, zones, min_severity FROM alert_subscriptions",
+        )
+        .fetch_all(&self.db)
+        .await?;
+
+        Ok(rows.into_iter().filter_map(|row| row.try_into().ok()).collect())
+    }
+
+    async fn dispatch_alerts(&self, alerts: &[Alert]) -> Result<()> {
+        let subscriptions = self.load_subscriptions().await?;
+        for alert in alerts {
+            let subscribers = dispatcher::find_subscribers(alert, &subscriptions);
+            for sub in subscribers {
+                self.insert_audit_log(
+                    None,
+                    "alert.dispatched",
+                    serde_json::json!({
+                        "alertId": alert.id,
+                        "userId": sub.user_id,
+                        "zone": &alert.zone,
+                        "metricType": alert.metric_type.to_string(),
+                        "severity": alert.severity as i32,
+                    }),
+                )
+                .await
+                .ok();
+            }
+        }
+        Ok(())
+    }
+
     async fn insert_audit_log(
         &self,
         user_id: Option<Uuid>,
@@ -335,6 +375,48 @@ impl ThresholdRuleRow {
     fn try_into_rule(self) -> Result<ThresholdRule> {
         self.try_into()
             .map_err(|error: String| Error::Internal(error))
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct AlertSubscriptionRow {
+    id: Uuid,
+    user_id: Uuid,
+    metric_types: Option<Vec<String>>,
+    zones: Option<Vec<String>>,
+    min_severity: Option<i32>,
+}
+
+impl TryFrom<AlertSubscriptionRow> for AlertSubscription {
+    type Error = String;
+
+    fn try_from(row: AlertSubscriptionRow) -> std::result::Result<Self, Self::Error> {
+        let metric_types: Vec<MetricType> = row
+            .metric_types
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|s| match s.as_str() {
+                "temperature" => Some(MetricType::Temperature),
+                "humidity" => Some(MetricType::Humidity),
+                "air_quality" => Some(MetricType::AirQuality),
+                "noise_level" => Some(MetricType::NoiseLevel),
+                _ => None,
+            })
+            .collect();
+
+        let min_severity = match row.min_severity.unwrap_or(1) {
+            3 => Severity::Critical,
+            2 => Severity::Warning,
+            _ => Severity::Low,
+        };
+
+        Ok(AlertSubscription {
+            id: row.id,
+            user_id: row.user_id,
+            metric_types,
+            zones: row.zones.unwrap_or_default(),
+            min_severity,
+        })
     }
 }
 

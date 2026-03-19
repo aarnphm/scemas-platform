@@ -9,7 +9,7 @@ export function ZoneAqiGrid() {
   const zoneAqi = useQuery({
     queryKey: ['public-zone-aqi'],
     queryFn: fetchZoneAqi,
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   })
   const zones = zoneAqi.data ?? []
 
@@ -62,7 +62,7 @@ export function ZoneAqiGrid() {
       </div>
 
       <p className="text-center text-xs opacity-40">
-        public REST feed: <code>/api/v1/zones/aqi</code>, refreshes every 30 seconds
+        public REST feed: <code>/api/v1/zones/aqi</code>, refreshes every 10 seconds
       </p>
     </div>
   )

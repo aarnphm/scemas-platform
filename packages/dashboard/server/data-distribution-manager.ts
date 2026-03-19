@@ -32,7 +32,7 @@ export class DataDistributionManager {
   async getLatestSensorReadings(limit = 100): Promise<LatestSensorReading[]> {
     const safeLimit = Math.max(1, Math.min(limit, 500))
 
-    return this.db.$client<LatestSensorReading[]>`
+    const rows = await this.db.$client`
       select sensor_id as "sensorId", metric_type as "metricType", value, zone, time
       from (
         select distinct on (sensor_id)
@@ -43,18 +43,20 @@ export class DataDistributionManager {
       order by time desc
       limit ${safeLimit}
     `
+    return rows.map(coerceReadingRow)
   }
 
   async getRecentZoneReadings(zone: string, limit = 120): Promise<LatestSensorReading[]> {
     const safeLimit = Math.max(1, Math.min(limit, 500))
 
-    return this.db.$client<LatestSensorReading[]>`
+    const rows = await this.db.$client`
       select sensor_id as "sensorId", metric_type as "metricType", value, zone, time
       from sensor_readings
       where zone = ${zone}
       order by time desc
       limit ${safeLimit}
     `
+    return rows.map(coerceReadingRow)
   }
 
   async getPublicZoneAqi(): Promise<ZoneAQI[]> {
@@ -108,6 +110,16 @@ export class DataDistributionManager {
 
 export function createDataDistributionManager(db: Database): DataDistributionManager {
   return new DataDistributionManager(db)
+}
+
+function coerceReadingRow(row: Record<string, unknown>): LatestSensorReading {
+  return {
+    sensorId: String(row.sensorId),
+    metricType: String(row.metricType) as MetricType,
+    value: Number(row.value),
+    zone: String(row.zone),
+    time: row.time instanceof Date ? row.time : new Date(String(row.time)),
+  }
 }
 
 function pm25ToAqi(concentration: number): number {

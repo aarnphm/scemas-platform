@@ -1,9 +1,16 @@
 // MonitorSCEMASPlatformStatus boundary (DataDistributionManager)
+import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { ingestionFailures, platformStatus } from '@scemas/db/schema'
 import { desc, eq } from 'drizzle-orm'
 
+import {
+  resolveSessionUser,
+  sessionLandingPath,
+} from '@/lib/session'
 import { getDb } from '@/server/cached'
-import { getInternalRustUrl } from '@/server/env'
+import { getInternalRustUrl, getJwtSecret } from '@/server/env'
 
 type IngestionHealth = {
   total_received: number
@@ -28,11 +35,11 @@ export default async function HealthPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">platform health</h1>
+      <h1 className="text-xl font-semibold text-balance">platform health</h1>
       <div className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-medium">ingestion counters</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          received {ingestionHealth.total_received}, accepted {ingestionHealth.total_accepted}, rejected {ingestionHealth.total_rejected}
+          received <span className="font-mono tabular-nums">{ingestionHealth.total_received}</span>, accepted <span className="font-mono tabular-nums">{ingestionHealth.total_accepted}</span>, rejected <span className="font-mono tabular-nums">{ingestionHealth.total_rejected}</span>
         </p>
       </div>
 
@@ -53,6 +60,15 @@ export default async function HealthPage() {
                   zone {row.zone} | opened {row.createdAt.toLocaleString()}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">{row.error}</p>
+                <form action={resolveIngestionFailureAction} className="mt-3">
+                  <input name="failureId" type="hidden" value={row.id} />
+                  <button
+                    className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                    type="submit"
+                  >
+                    mark resolved
+                  </button>
+                </form>
               </div>
             ))}
           </div>
@@ -130,4 +146,47 @@ function formatNumber(value: number | null): string {
 
 function formatPercent(value: number | null): string {
   return value === null ? '--' : `${(value * 100).toFixed(1)}%`
+}
+
+async function resolveIngestionFailureAction(formData: FormData) {
+  'use server'
+
+  await requireAdminUser()
+
+  const rawFailureId = formData.get('failureId')
+  const failureId =
+    typeof rawFailureId === 'string' ? Number.parseInt(rawFailureId, 10) : Number.NaN
+
+  if (!Number.isInteger(failureId) || failureId <= 0) {
+    throw new Error('invalid ingestion failure id')
+  }
+
+  await getDb()
+    .update(ingestionFailures)
+    .set({
+      status: 'resolved',
+      resolvedAt: new Date(),
+    })
+    .where(eq(ingestionFailures.id, failureId))
+
+  revalidatePath('/health')
+}
+
+async function requireAdminUser() {
+  const cookieStore = await cookies()
+  const cookieHeader = cookieStore
+    .getAll()
+    .map(cookie => `${cookie.name}=${cookie.value}`)
+    .join('; ')
+
+  const user = await resolveSessionUser(cookieHeader, getJwtSecret())
+  if (!user) {
+    redirect('/sign-in')
+  }
+
+  if (user.role !== 'admin') {
+    redirect(sessionLandingPath(user.role))
+  }
+
+  return user
 }

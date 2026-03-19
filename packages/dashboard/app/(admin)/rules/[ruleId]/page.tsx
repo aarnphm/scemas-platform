@@ -22,7 +22,7 @@ export default async function RuleDetailPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">edit rule</h1>
+      <h1 className="text-xl font-semibold text-balance">edit rule</h1>
       <div className="rounded-lg border border-border bg-card p-4">
         <dl className="space-y-3 text-sm">
           <div>
@@ -35,7 +35,7 @@ export default async function RuleDetailPage({
           </div>
           <div>
             <dt className="text-muted-foreground">threshold</dt>
-            <dd>{rule.thresholdValue}</dd>
+            <dd className="font-mono tabular-nums">{rule.thresholdValue}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">scope</dt>

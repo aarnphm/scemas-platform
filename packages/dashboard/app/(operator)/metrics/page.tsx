@@ -8,8 +8,8 @@ export default async function MetricsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">city metrics</h1>
-      <p className="text-sm text-muted-foreground">
+      <h1 className="text-xl font-semibold text-balance">city metrics</h1>
+      <p className="text-sm text-muted-foreground text-pretty">
         four distinct sensor subagents summarize the latest telemetry by metric family, with zone drill-downs for operators
       </p>
       <MetricSubagentPanels panels={panels} />
