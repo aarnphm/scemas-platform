@@ -1,9 +1,9 @@
 // MonitorSCEMASPlatformStatus boundary (DataDistributionManager)
-import { createDb } from '@scemas/db'
 import { platformStatus } from '@scemas/db/schema'
 import { desc } from 'drizzle-orm'
 
-import { getDatabaseUrl, getInternalRustUrl } from '@/server/env'
+import { getDb } from '@/server/cached'
+import { getInternalRustUrl } from '@/server/env'
 
 type IngestionHealth = {
   total_received: number
@@ -12,7 +12,7 @@ type IngestionHealth = {
 }
 
 export default async function HealthPage() {
-  const db = createDb(getDatabaseUrl())
+  const db = getDb()
   const [statusRows, ingestionHealth] = await Promise.all([
     db.query.platformStatus.findMany({
       orderBy: [desc(platformStatus.time)],

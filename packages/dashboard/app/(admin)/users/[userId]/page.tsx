@@ -1,9 +1,8 @@
-import { createDb } from '@scemas/db'
 import { accounts, auditLogs } from '@scemas/db/schema'
 import { desc, eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 
-import { getDatabaseUrl } from '@/server/env'
+import { getDb } from '@/server/cached'
 
 export default async function UserDetailPage({
   params,
@@ -11,7 +10,7 @@ export default async function UserDetailPage({
   params: Promise<{ userId: string }>
 }) {
   const { userId } = await params
-  const db = createDb(getDatabaseUrl())
+  const db = getDb()
   const [account, recentLogs] = await Promise.all([
     db.query.accounts.findFirst({
       where: eq(accounts.id, userId),

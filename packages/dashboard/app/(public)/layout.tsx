@@ -9,9 +9,9 @@ export default function PublicLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-foreground text-background">
+    <div className="min-h-dvh bg-foreground text-background">
       <header className="flex items-center justify-between px-8 py-4">
-        <h1 className="text-2xl font-semibold">SCEMAS</h1>
+        <h1 className="text-2xl font-semibold text-balance">SCEMAS</h1>
         <p className="font-mono text-sm opacity-60">hamilton, ON</p>
       </header>
       <main className="px-8 pb-8">{children}</main>

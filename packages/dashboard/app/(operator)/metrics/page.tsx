@@ -1,13 +1,9 @@
 import { MetricSubagentPanels, buildMetricSubagentPanels } from '@/components/operator/metric-subagent-panels'
-import { createDb } from '@scemas/db'
-
-import { createDataDistributionManager } from '@/server/data-distribution-manager'
-import { getDatabaseUrl } from '@/server/env'
+import { getManager } from '@/server/cached'
 
 // VisualizeCityMetrics boundary (DataDistributionManager)
 export default async function MetricsPage() {
-  const db = createDb(getDatabaseUrl())
-  const manager = createDataDistributionManager(db)
+  const manager = getManager()
   const panels = buildMetricSubagentPanels(await manager.getLatestSensorReadings(200))
 
   return (

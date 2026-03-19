@@ -1,11 +1,9 @@
-import { createDb } from '@scemas/db'
-
 import { SubscriptionManager } from '@/components/operator/subscription-manager'
-import { getDatabaseUrl } from '@/server/env'
+import { getDb } from '@/server/cached'
 
 // ManageAlertSubscriptions boundary (innovative feature)
 export default async function SubscriptionsPage() {
-  const db = createDb(getDatabaseUrl())
+  const db = getDb()
   const devices = await db.query.devices.findMany({
     columns: { zone: true },
   })

@@ -1,11 +1,7 @@
-import { createDb } from '@scemas/db'
-
-import { createDataDistributionManager } from '@/server/data-distribution-manager'
-import { getDatabaseUrl } from '@/server/env'
+import { getManager } from '@/server/cached'
 
 export async function GET(): Promise<Response> {
-  const db = createDb(getDatabaseUrl())
-  const manager = createDataDistributionManager(db)
+  const manager = getManager()
   const zones = await manager.getPublicZoneAqi()
 
   return Response.json(zones, {

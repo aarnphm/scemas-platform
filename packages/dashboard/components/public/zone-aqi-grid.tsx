@@ -49,8 +49,8 @@ export function ZoneAqiGrid() {
             key={zone.zone}
           >
             <p className="text-lg opacity-60">{zone.zone.replaceAll('_', ' ')}</p>
-            <p className="font-mono text-6xl font-bold">{zone.aqi}</p>
-            <p className="mt-2 text-sm uppercase tracking-[0.24em] opacity-60">
+            <p className="font-mono text-6xl font-bold tabular-nums">{zone.aqi}</p>
+            <p className="mt-2 text-sm uppercase opacity-60">
               {zone.label}
             </p>
             <div className="mt-6 flex items-center justify-center gap-6 text-sm opacity-70">

@@ -1,9 +1,7 @@
 import { MetricSubagentPanels, buildMetricSubagentPanels } from '@/components/operator/metric-subagent-panels'
-import { createDb } from '@scemas/db'
 import { notFound } from 'next/navigation'
 
-import { createDataDistributionManager } from '@/server/data-distribution-manager'
-import { getDatabaseUrl } from '@/server/env'
+import { getManager } from '@/server/cached'
 
 // zone drill-down: all 4 sensor subagent metrics for a specific zone
 export default async function ZoneMetricsPage({
@@ -12,8 +10,7 @@ export default async function ZoneMetricsPage({
   params: Promise<{ zone: string }>
 }) {
   const { zone } = await params
-  const db = createDb(getDatabaseUrl())
-  const manager = createDataDistributionManager(db)
+  const manager = getManager()
   const readings = await manager.getRecentZoneReadings(zone, 120)
 
   if (readings.length === 0) {

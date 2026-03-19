@@ -1,10 +1,9 @@
-import { createDb } from '@scemas/db'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 
 import { thresholdRules } from '@scemas/db/schema'
 
-import { getDatabaseUrl } from '@/server/env'
+import { getDb } from '@/server/cached'
 
 export default async function RuleDetailPage({
   params,
@@ -12,7 +11,7 @@ export default async function RuleDetailPage({
   params: Promise<{ ruleId: string }>
 }) {
   const { ruleId } = await params
-  const db = createDb(getDatabaseUrl())
+  const db = getDb()
   const rule = await db.query.thresholdRules.findFirst({
     where: eq(thresholdRules.id, ruleId),
   })

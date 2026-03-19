@@ -71,10 +71,10 @@ export function MetricSubagentPanels({
       {panels.map(panel => (
         <article className="rounded-lg border border-border bg-card p-4" key={panel.metricType}>
           <div className="mb-4 space-y-1">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <p className="text-xs uppercase text-muted-foreground">
               {panel.title}
             </p>
-            <p className="font-mono text-3xl">
+            <p className="font-mono text-3xl tabular-nums">
               {panel.averageValue} <span className="text-sm text-muted-foreground">{panel.unit}</span>
             </p>
             <p className="text-xs text-muted-foreground">
@@ -103,7 +103,7 @@ export function MetricSubagentPanels({
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono">
+                    <p className="font-mono tabular-nums">
                       {zone.averageValue} {panel.unit}
                     </p>
                     <p className="text-xs text-muted-foreground">

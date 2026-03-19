@@ -37,7 +37,7 @@
           cargo clippy rustc rustfmt rust-analyzer
           bun nodejs_22
           postgresql_16 pg_init pg_start pg_stop
-          pkg-config openssl
+          pkg-config openssl python3
         ];
         env = {
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
