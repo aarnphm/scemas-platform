@@ -11,6 +11,7 @@ const defaultUsers = [
   { email: 'admin@example.com', username: 'admin', password: '1234', role: 'admin' },
   { email: 'operator@example.com', username: 'operator', password: '1234', role: 'operator' },
   { email: 'viewer@example.com', username: 'viewer', password: '1234', role: 'viewer' },
+  { email: 'public@example.com', username: 'public', password: '1234', role: 'viewer' },
 ] as const
 
 const db = createDb(DATABASE_URL)

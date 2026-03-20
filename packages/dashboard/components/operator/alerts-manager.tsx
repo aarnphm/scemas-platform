@@ -1,5 +1,6 @@
 'use client'
 
+import { keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
@@ -40,8 +41,12 @@ function sortAlerts(alerts: Alert[], mode: SortMode): Alert[] {
   }
 }
 
-function buildTree(alerts: Alert[], sortMode: SortMode): ZoneNode[] {
+function buildTree(alerts: Alert[], sortMode: SortMode, allZones: string[]): ZoneNode[] {
   const zones = new Map<string, Map<string, Alert[]>>()
+
+  for (const zone of allZones) {
+    zones.set(zone, new Map())
+  }
 
   for (const alert of alerts) {
     let metrics = zones.get(alert.zone)
@@ -71,28 +76,38 @@ function buildTree(alerts: Alert[], sortMode: SortMode): ZoneNode[] {
         .flat()
         .filter(a => a.status === 'active').length,
     }))
-    .toSorted((a, b) => b.activeCount - a.activeCount)
+    .toSorted((a, b) => a.zone.localeCompare(b.zone))
 }
 
-export function AlertsManager() {
+export function AlertsManager({ availableZones }: { availableZones: string[] }) {
   const utils = trpc.useUtils()
-  const alertsQuery = trpc.alerts.list.useQuery({ limit: 50 })
+  const alertsQuery = trpc.alerts.list.useQuery(
+    { limit: 50 },
+    { placeholderData: keepPreviousData },
+  )
   const [inflightId, setInflightId] = useState<string | null>(null)
   const [sortMode, setSortMode] = useState<SortMode>('latest')
   const [openZone, setOpenZone] = useState<string | null | undefined>(undefined)
+
+  function optimisticallyRemove(id: string) {
+    utils.alerts.list.setData({ limit: 50 }, old => {
+      if (!old) return old
+      return old.filter(a => a.id !== id)
+    })
+  }
+
   const acknowledgeAlert = trpc.alerts.acknowledge.useMutation({
     onMutate: ({ id }) => setInflightId(id),
-    onSettled: async () => {
-      await utils.alerts.list.invalidate()
-      setInflightId(null)
-    },
+    onSuccess: () => utils.alerts.list.invalidate(),
+    onSettled: () => setInflightId(null),
   })
   const resolveAlert = trpc.alerts.resolve.useMutation({
-    onMutate: ({ id }) => setInflightId(id),
-    onSettled: async () => {
-      await utils.alerts.list.invalidate()
-      setInflightId(null)
+    onMutate: ({ id }) => {
+      setInflightId(id)
+      optimisticallyRemove(id)
     },
+    onSuccess: () => utils.alerts.list.invalidate(),
+    onSettled: () => setInflightId(null),
   })
 
   if (alertsQuery.isLoading) {
@@ -115,20 +130,7 @@ export function AlertsManager() {
   }
 
   const alerts = alertsQuery.data ?? []
-  if (alerts.length === 0) {
-    return (
-      <div className="rounded-lg border border-border bg-card">
-        <div className="border-b border-border px-4 py-3 text-sm font-medium">
-          operator alert queue
-        </div>
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground text-pretty">
-          no alerts match your subscription filters
-        </p>
-      </div>
-    )
-  }
-
-  const tree = buildTree(alerts, sortMode)
+  const tree = buildTree(alerts, sortMode, availableZones)
   const firstActiveZone = tree.find(n => n.activeCount > 0)?.zone ?? tree[0]?.zone ?? null
   const effectiveOpenZone = openZone === undefined ? firstActiveZone : openZone
 
@@ -183,8 +185,8 @@ function ZoneBranch({
   expanded: boolean
   onToggle: () => void
 }) {
-  const metricEntries = Array.from(node.metrics.entries()).toSorted(
-    ([, a], [, b]) => b.length - a.length,
+  const metricEntries = Array.from(node.metrics.entries()).toSorted(([a], [b]) =>
+    a.localeCompare(b),
   )
   const [openMetric, setOpenMetric] = useState<string | null>(metricEntries[0]?.[0] ?? null)
 
@@ -201,31 +203,35 @@ function ZoneBranch({
           ▸
         </span>
         <span className="font-medium">{formatZoneName(node.zone)}</span>
-        {node.activeCount > 0 ? (
-          <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive tabular-nums">
-            {node.activeCount} active
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">all handled</span>
-        )}
+        <span
+          className={`rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums ${
+            node.activeCount > 0 ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground'
+          }`}
+        >
+          {node.activeCount} active
+        </span>
       </button>
 
       <div
         className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
       >
         <div className="overflow-hidden">
-          {metricEntries.map(([metricType, metricAlerts]) => (
-            <MetricBranch
-              acknowledgeAlert={acknowledgeAlert}
-              alerts={metricAlerts}
-              expanded={openMetric === metricType}
-              inflightId={inflightId}
-              key={metricType}
-              metricType={metricType}
-              onToggle={() => setOpenMetric(prev => (prev === metricType ? null : metricType))}
-              resolveAlert={resolveAlert}
-            />
-          ))}
+          {metricEntries.length === 0 ? (
+            <p className="px-4 py-3 text-xs text-muted-foreground">no active alerts</p>
+          ) : (
+            metricEntries.map(([metricType, metricAlerts]) => (
+              <MetricBranch
+                acknowledgeAlert={acknowledgeAlert}
+                alerts={metricAlerts}
+                expanded={openMetric === metricType}
+                inflightId={inflightId}
+                key={metricType}
+                metricType={metricType}
+                onToggle={() => setOpenMetric(prev => (prev === metricType ? null : metricType))}
+                resolveAlert={resolveAlert}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>

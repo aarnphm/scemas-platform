@@ -1,7 +1,5 @@
-import {
-  MetricSubagentPanels,
-  buildMetricSubagentPanels,
-} from '@/components/operator/metric-subagent-panels'
+import { MetricSubagentPanels } from '@/components/operator/metric-subagent-panels'
+import { buildMetricSubagentPanels } from '@/lib/metric-panels'
 import { getManager } from '@/server/cached'
 
 // VisualizeCityMetrics boundary (DataDistributionManager)

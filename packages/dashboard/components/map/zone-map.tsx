@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { formatZoneName, hamiltonMonitoringRegions } from '@/lib/zones'
@@ -11,12 +11,19 @@ type SensorPin = {
   stationId: string
   displayName: string
   siteName: string
+  siteProfile: string
   placement: string
   provider: string
+  wardId: string
+  wardLabel: string
+  hostPlanningUnitId: string
+  hostPlanningUnitLabel: string
+  community: string
+  focusArea: string
   telemetryUnit: string
   samplingIntervalSeconds: number
-  wardIds: string[]
-  planningUnitIds: string[]
+  regionWardLabels: string[]
+  regionNeighbourhoods: string[]
   zone: string
   lat: number
   lng: number
@@ -57,18 +64,23 @@ export function ZoneMap({ sensors, alertCounts }: ZoneMapProps) {
   const [selected, setSelected] = useState<SensorPin | null>(null)
   const [hoveredZone, setHoveredZone] = useState<string | null>(null)
   const [layers, setLayers] = useState<LayerVisibility>({ sensors: true, zones: false })
+  const [projectedOverlay, setProjectedOverlay] = useState<ProjectedOverlay | null>(null)
   const mapRef = useRef<MapRef | null>(null)
-  const projectedOverlay = useMemo(
-    () => buildProjectedOverlay(mapRef.current, alertCounts),
-    [alertCounts],
-  )
+
+  const reproject = useCallback(() => {
+    setProjectedOverlay(buildProjectedOverlay(mapRef.current, alertCounts))
+  }, [alertCounts])
+
+  useEffect(() => {
+    reproject()
+  }, [reproject])
 
   return (
     <div className="h-100 overflow-hidden rounded-lg border border-border bg-card">
       <div className="relative h-full w-full">
         <Map
           attributionControl={false}
-          initialViewState={{ longitude: -79.846, latitude: 43.253, zoom: 10.6 }}
+          initialViewState={{ longitude: -79.878, latitude: 43.241, zoom: 10.2 }}
           mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
           style={{ width: '100%', height: '100%' }}
           ref={mapRef}
@@ -79,7 +91,17 @@ export function ZoneMap({ sensors, alertCounts }: ZoneMapProps) {
                 map.setLayoutProperty(layer.id, 'visibility', 'none')
               }
             }
+            map.fitBounds(
+              [
+                [-80.02, 43.195],
+                [-79.735, 43.285],
+              ],
+              { padding: 24, duration: 0 },
+            )
+            reproject()
           }}
+          onMove={reproject}
+          onResize={reproject}
         >
           {layers.sensors
             ? sensors.map(sensor => {
@@ -128,17 +150,23 @@ export function ZoneMap({ sensors, alertCounts }: ZoneMapProps) {
                 </p>
                 <p className="text-muted-foreground">{selected.siteName}</p>
                 <p className="text-muted-foreground">
-                  {selected.placement}, sampled every {selected.samplingIntervalSeconds}s
+                  {selected.siteProfile.replaceAll('_', ' ')}, {selected.placement}, sampled every{' '}
+                  {selected.samplingIntervalSeconds}s
                 </p>
                 <p className="text-muted-foreground">{selected.provider}</p>
                 <p className="text-muted-foreground">
                   {formatZoneName(selected.zone, 'lower', selected.sensorId)}
                 </p>
                 <p className="text-muted-foreground">
-                  station {selected.stationId}, {selected.wardIds.join(', ')}
+                  {selected.community.toLowerCase()} · {selected.focusArea}
                 </p>
                 <p className="text-muted-foreground">
-                  planning units {selected.planningUnitIds.join(', ')}
+                  station {selected.stationId}, {selected.wardLabel}, planning unit{' '}
+                  {selected.hostPlanningUnitId} {selected.hostPlanningUnitLabel}
+                </p>
+                <p className="text-muted-foreground">
+                  region spans {selected.regionWardLabels.join(', ')} across{' '}
+                  {selected.regionNeighbourhoods.join(', ')}
                 </p>
               </div>
             </Popup>
@@ -162,11 +190,15 @@ export function ZoneMap({ sensors, alertCounts }: ZoneMapProps) {
                 <g key={region.zoneId}>
                   <path
                     d={region.path}
-                    fill={hasAlerts ? 'var(--color-severity-warning)' : 'var(--color-border)'}
-                    fillOpacity={isHovered ? (hasAlerts ? 0.3 : 0.22) : hasAlerts ? 0.18 : 0.1}
-                    stroke={hasAlerts ? 'var(--color-severity-warning)' : 'var(--color-border)'}
+                    fill={
+                      hasAlerts ? 'var(--color-severity-warning)' : 'var(--color-scemas-lavender)'
+                    }
+                    fillOpacity={isHovered ? 0.35 : hasAlerts ? 0.22 : 0.18}
+                    stroke={
+                      hasAlerts ? 'var(--color-severity-warning)' : 'var(--color-scemas-lavender)'
+                    }
                     strokeLinejoin="round"
-                    strokeOpacity={isHovered ? 1 : 0.7}
+                    strokeOpacity={isHovered ? 1 : 0.8}
                     strokeWidth={isHovered ? 2.5 : 1.5}
                     style={{
                       pointerEvents: 'fill',

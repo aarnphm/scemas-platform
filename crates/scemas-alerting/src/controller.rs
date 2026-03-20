@@ -121,6 +121,48 @@ impl AlertingManager {
         Ok(rule)
     }
 
+    pub async fn edit_rule(
+        &self,
+        rule_id: Uuid,
+        metric_type: MetricType,
+        threshold_value: f64,
+        comparison: Comparison,
+        zone: Option<String>,
+        updated_by: Uuid,
+    ) -> Result<ThresholdRule> {
+        let normalized_zone = zone
+            .as_deref()
+            .map(|zone| regions::normalize_zone_id(zone, None));
+
+        let row: ThresholdRuleRow = sqlx::query_as(
+            "UPDATE threshold_rules SET metric_type = $1, threshold_value = $2, comparison = $3, zone = $4 WHERE id = $5 RETURNING id, metric_type, threshold_value, comparison, zone, rule_status",
+        )
+        .bind(metric_type.to_string())
+        .bind(threshold_value)
+        .bind(comparison_label(&comparison))
+        .bind(&normalized_zone)
+        .bind(rule_id)
+        .fetch_one(&self.db)
+        .await?;
+
+        let rule = row.try_into_rule()?;
+        self.blackboard.write().await.upsert_rule(rule.clone());
+        self.insert_audit_log(
+            Some(updated_by),
+            "rule.edited",
+            serde_json::json!({
+                "ruleId": rule_id,
+                "metricType": metric_type.to_string(),
+                "thresholdValue": threshold_value,
+                "comparison": comparison_label(&comparison),
+                "zone": normalized_zone,
+            }),
+        )
+        .await?;
+
+        Ok(rule)
+    }
+
     pub async fn update_rule_status(
         &self,
         rule_id: Uuid,

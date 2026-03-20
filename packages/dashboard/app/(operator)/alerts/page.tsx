@@ -1,9 +1,17 @@
+import { devices } from '@scemas/db/schema'
 import { AlertsManager } from '@/components/operator/alerts-manager'
 import { serverTrpc, HydrateClient } from '@/lib/trpc-server'
+import { normalizeZoneIds } from '@/lib/zones'
+import { getDb } from '@/server/cached'
 
 // HandleActiveAlerts boundary (AlertingManager)
 export default async function AlertsPage() {
-  void serverTrpc.alerts.list.prefetch({ limit: 50 })
+  const db = getDb()
+  const [, deviceRows] = await Promise.all([
+    serverTrpc.alerts.list.prefetch({ limit: 50 }),
+    db.query.devices.findMany({ columns: { zone: true } }),
+  ])
+  const availableZones = normalizeZoneIds(deviceRows.map(d => d.zone))
 
   return (
     <div className="space-y-6">
@@ -13,7 +21,7 @@ export default async function AlertsPage() {
         handled
       </p>
       <HydrateClient>
-        <AlertsManager />
+        <AlertsManager availableZones={availableZones} />
       </HydrateClient>
     </div>
   )

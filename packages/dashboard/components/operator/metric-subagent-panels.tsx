@@ -1,56 +1,16 @@
-import type { MetricType } from '@scemas/types'
+'use client'
+
 import Link from 'next/link'
-import type { LatestSensorReading } from '@/server/data-distribution-manager'
+import { useState } from 'react'
+import type { MetricPanelData } from '@/lib/metric-panels'
+import { ListPagination } from '@/components/list-pagination'
 import { formatZoneName } from '@/lib/zones'
 
-type MetricPanelData = {
-  metricType: MetricType
-  title: string
-  unit: string
-  averageValue: string
-  latestTime: string
-  zones: Array<{ zone: string; averageValue: string; latestValue: string; sensorCount: number }>
-}
+export { buildMetricSubagentPanels } from '@/lib/metric-panels'
+export type { MetricPanelData } from '@/lib/metric-panels'
 
-const metricConfig: Record<MetricType, { title: string; unit: string }> = {
-  temperature: { title: 'temperature subagent', unit: 'c' },
-  humidity: { title: 'humidity subagent', unit: '%' },
-  air_quality: { title: 'air quality subagent', unit: 'ug/m3' },
-  noise_level: { title: 'noise subagent', unit: 'db' },
-}
-
-const metricOrder: MetricType[] = ['temperature', 'humidity', 'air_quality', 'noise_level']
-
-export function buildMetricSubagentPanels(readings: LatestSensorReading[]): MetricPanelData[] {
-  return metricOrder.map(metricType => {
-    const metricReadings = readings.filter(reading => reading.metricType === metricType)
-    const zones = new Map<string, LatestSensorReading[]>()
-
-    for (const reading of metricReadings) {
-      const zoneReadings = zones.get(reading.zone) ?? []
-      zoneReadings.push(reading)
-      zones.set(reading.zone, zoneReadings)
-    }
-
-    const latestTimestamp = metricReadings[0]?.time
-
-    return {
-      metricType,
-      title: metricConfig[metricType].title,
-      unit: metricConfig[metricType].unit,
-      averageValue: formatAverage(metricReadings),
-      latestTime: latestTimestamp ? latestTimestamp.toLocaleString() : '--',
-      zones: Array.from(zones.entries())
-        .map(([zone, zoneReadings]) => ({
-          zone,
-          averageValue: formatAverage(zoneReadings),
-          latestValue: formatValue(zoneReadings[0]?.value),
-          sensorCount: zoneReadings.length,
-        }))
-        .toSorted((left, right) => left.zone.localeCompare(right.zone)),
-    }
-  })
-}
+const ZONES_PER_PAGE = 5
+const ZONE_ROW_HEIGHT = 'h-14'
 
 export function MetricSubagentPanels({
   panels,
@@ -74,61 +34,90 @@ export function MetricSubagentPanels({
             </p>
           </div>
 
-          <div className="space-y-2">
-            {panel.zones.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                no telemetry has been recorded for this subagent yet
-              </p>
-            ) : (
-              panel.zones.map(zone => (
-                <div
-                  className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2 text-sm"
-                  key={`${panel.metricType}-${zone.zone}`}
-                >
-                  <div className="space-y-1">
-                    {showZoneLinks ? (
-                      <Link
-                        className="font-medium underline-offset-4 hover:underline"
-                        href={`/metrics/${zone.zone}`}
-                      >
-                        {formatZoneName(zone.zone)}
-                      </Link>
-                    ) : (
-                      <p className="font-medium">{formatZoneName(zone.zone)}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {zone.sensorCount} active sensors
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono tabular-nums">
-                      {zone.averageValue} {panel.unit}
-                    </p>
-                    <p className="text-xs text-muted-foreground">latest {zone.latestValue}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <ZoneList
+            metricType={panel.metricType}
+            showZoneLinks={showZoneLinks}
+            unit={panel.unit}
+            zones={panel.zones}
+          />
         </article>
       ))}
     </div>
   )
 }
 
-function formatAverage(readings: LatestSensorReading[]): string {
-  if (readings.length === 0) {
-    return '--'
+function ZoneList({
+  zones,
+  metricType,
+  unit,
+  showZoneLinks,
+}: {
+  zones: MetricPanelData['zones']
+  metricType: string
+  unit: string
+  showZoneLinks: boolean
+}) {
+  const [page, setPage] = useState(0)
+
+  if (zones.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        no telemetry has been recorded for this subagent yet
+      </p>
+    )
   }
 
-  const total = readings.reduce((sum, reading) => sum + reading.value, 0)
-  return formatValue(total / readings.length)
-}
+  const totalPages = Math.ceil(zones.length / ZONES_PER_PAGE)
+  const safePage = Math.min(page, Math.max(0, totalPages - 1))
+  const pageZones = zones.slice(safePage * ZONES_PER_PAGE, (safePage + 1) * ZONES_PER_PAGE)
 
-function formatValue(value: number | undefined): string {
-  if (value === undefined) {
-    return '--'
-  }
+  const emptySlots = ZONES_PER_PAGE - pageZones.length
 
-  return `${Math.round(value * 10) / 10}`
+  return (
+    <div className="flex flex-col">
+      <div>
+        {pageZones.map(zone => (
+          <div
+            className={`flex items-center justify-between border-b border-border/40 px-3 text-sm ${ZONE_ROW_HEIGHT}`}
+            key={`${metricType}-${zone.zone}`}
+          >
+            <div className="min-w-0 space-y-0.5">
+              {showZoneLinks ? (
+                <Link
+                  className="font-medium underline-offset-4 hover:underline"
+                  href={`/metrics/${zone.zone}`}
+                >
+                  {formatZoneName(zone.zone)}
+                </Link>
+              ) : (
+                <p className="truncate font-medium">{formatZoneName(zone.zone)}</p>
+              )}
+              <p className="text-xs text-muted-foreground">{zone.sensorCount} sensors</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="font-mono tabular-nums">
+                {zone.averageValue} {unit}
+              </p>
+              <p className="text-xs text-muted-foreground">latest {zone.latestValue}</p>
+            </div>
+          </div>
+        ))}
+        {emptySlots > 0
+          ? Array.from({ length: emptySlots }, (_, i) => (
+              <div
+                className={`border-b border-border/40 last:border-b-0 ${ZONE_ROW_HEIGHT}`}
+                key={`empty-${i}`}
+              />
+            ))
+          : null}
+      </div>
+      <ListPagination
+        onPageChange={setPage}
+        page={safePage}
+        pageSize={ZONES_PER_PAGE}
+        totalItems={zones.length}
+        totalPages={totalPages}
+      />
+    </div>
+  )
 }

@@ -7,9 +7,13 @@ export type ZoneBoundaryProperties = {
   zoneId: string
   label: string
   community: string
+  focusArea: string
   neighbourhoods: string[]
   planningUnits: string[]
+  planningUnitDetails: Array<{ id: string; label: string }>
   legacyIds: string[]
+  wardIds: string[]
+  wardLabels: string[]
   sourceType: 'planning_unit'
   sourceUrl: string
 }
@@ -25,10 +29,6 @@ export type ZoneBoundaryFeatureCollection = {
   features: ZoneBoundaryFeature[]
 }
 
-const groupedLegacyZoneAliases: Record<string, string[]> = {
-  ward_2: ['downtown_core', 'north_end_west'],
-}
-
 const zoneBoundaryCollection: ZoneBoundaryFeatureCollection = {
   type: 'FeatureCollection',
   features: hamiltonMonitoringRegionsData.features.map(feature => ({
@@ -37,9 +37,13 @@ const zoneBoundaryCollection: ZoneBoundaryFeatureCollection = {
       zoneId: feature.properties.zoneId,
       label: feature.properties.label,
       community: feature.properties.community,
+      focusArea: feature.properties.focusArea,
       neighbourhoods: feature.properties.neighbourhoods,
       planningUnits: feature.properties.planningUnits,
+      planningUnitDetails: feature.properties.planningUnitDetails,
       legacyIds: feature.properties.legacyIds,
+      wardIds: feature.properties.wardIds,
+      wardLabels: feature.properties.wardLabels,
       sourceType: 'planning_unit',
       sourceUrl: feature.properties.sourceUrl,
     },
@@ -47,9 +51,11 @@ const zoneBoundaryCollection: ZoneBoundaryFeatureCollection = {
   })),
 }
 
+const groupedLegacyZoneAliases = new Map<string, Set<string>>()
 const zoneNameById = new Map<string, string>()
 const zoneAliasesById = new Map<string, Set<string>>()
 const directLegacyZoneAliases = new Map<string, string>()
+const compatibilityZoneAliases: Record<string, string> = { ward_14: 'west_mountain' }
 
 for (const feature of zoneBoundaryCollection.features) {
   zoneNameById.set(feature.properties.zoneId, feature.properties.label)
@@ -59,6 +65,17 @@ for (const feature of zoneBoundaryCollection.features) {
     directLegacyZoneAliases.set(legacyId, feature.properties.zoneId)
     zoneAliasesById.get(feature.properties.zoneId)?.add(legacyId)
   }
+
+  for (const wardId of feature.properties.wardIds) {
+    const zones = groupedLegacyZoneAliases.get(wardId) ?? new Set<string>()
+    zones.add(feature.properties.zoneId)
+    groupedLegacyZoneAliases.set(wardId, zones)
+  }
+}
+
+for (const [legacyZone, canonicalZone] of Object.entries(compatibilityZoneAliases)) {
+  directLegacyZoneAliases.set(legacyZone, canonicalZone)
+  zoneAliasesById.get(canonicalZone)?.add(legacyZone)
 }
 
 const sensorZoneById = new Map<string, string>()
@@ -74,6 +91,10 @@ for (const sensor of sensorCatalog) {
 }
 
 export const hamiltonMonitoringRegions = zoneBoundaryCollection
+
+export const zoneOptions: Array<{ id: string; label: string }> = zoneBoundaryCollection.features
+  .map(f => ({ id: f.properties.zoneId, label: f.properties.label }))
+  .toSorted((a, b) => a.label.localeCompare(b.label))
 
 export function normalizeZoneId(zone: string, sensorId?: string): string {
   if (sensorId) {
@@ -100,7 +121,7 @@ export function normalizeZoneIds(zones: string[]): string[] {
 export function expandZoneIds(zone: string): string[] {
   const expandedZones = new Set<string>()
 
-  if (groupedLegacyZoneAliases[zone]) {
+  if (groupedLegacyZoneAliases.has(zone)) {
     expandedZones.add(zone)
   }
 
@@ -162,8 +183,9 @@ export function formatZoneName(
   sensorId?: string,
 ): string {
   const resolvedZone = normalizeZoneId(zone, sensorId)
-  const groupedLegacyLabel = groupedLegacyZoneAliases[zone]
-    ? groupedLegacyZoneAliases[zone]
+  const groupedZones = groupedLegacyZoneAliases.get(zone)
+  const groupedLegacyLabel = groupedZones
+    ? Array.from(groupedZones)
         .map(candidateZone => zoneNameById.get(candidateZone) ?? candidateZone.replaceAll('_', ' '))
         .join(' + ')
     : null
@@ -174,9 +196,9 @@ export function formatZoneName(
 }
 
 function canonicalZoneIdsForInput(zone: string): string[] {
-  const groupedAliases = groupedLegacyZoneAliases[zone]
+  const groupedAliases = groupedLegacyZoneAliases.get(zone)
   if (groupedAliases) {
-    return groupedAliases
+    return Array.from(groupedAliases).toSorted((left, right) => left.localeCompare(right))
   }
 
   return [normalizeDirectZoneId(zone)]

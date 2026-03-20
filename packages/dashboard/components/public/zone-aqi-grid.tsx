@@ -7,33 +7,33 @@ import { formatZoneName } from '@/lib/zones'
 import { ZoneAqiBarChart } from './zone-aqi-bar-chart'
 
 export function ZoneAqiGrid() {
-  const zoneAqi = useQuery({
+  const regionAqi = useQuery({
     queryKey: ['public-zone-aqi'],
     queryFn: fetchZoneAqi,
     refetchInterval: 10_000,
   })
-  const zones = zoneAqi.data ?? []
+  const regions = regionAqi.data ?? []
 
-  if (zoneAqi.isLoading) {
+  if (regionAqi.isLoading) {
     return (
       <div className="flex min-h-[16rem] items-center justify-center">
         <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           <Spinner />
-          loading zone data
+          loading monitoring region data
         </span>
       </div>
     )
   }
 
-  if (zoneAqi.isError) {
+  if (regionAqi.isError) {
     return (
       <div className="rounded-xl bg-card p-6 text-sm text-muted-foreground">
-        unable to load public air quality data right now
+        unable to load public monitoring region air quality data right now
       </div>
     )
   }
 
-  if (!zones.length) {
+  if (!regions.length) {
     return (
       <div className="rounded-xl bg-card p-6 text-sm text-muted-foreground">
         no aggregated telemetry is available yet. run the seed flow and wait for the analytics
@@ -44,30 +44,51 @@ export function ZoneAqiGrid() {
 
   return (
     <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-border/50 bg-card p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            monitoring regions
+          </p>
+          <p className="mt-2 font-mono text-3xl tabular-nums">{regions.length}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            public rollup across named hamilton monitoring regions
+          </p>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            boundary source
+          </p>
+          <p className="mt-2 text-lg font-medium text-foreground">official planning units</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            display labels are public-facing regions, not parcel zoning or raw planning-unit ids
+          </p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {zones.map(zone => (
+        {regions.map(region => (
           <article
             className="flex min-h-[180px] flex-col justify-between rounded-xl border border-border/50 bg-card p-6"
-            key={zone.zone}
+            key={region.zone}
           >
             <p className="text-sm text-muted-foreground text-pretty">
-              {formatZoneName(zone.zone, 'title')}
+              {formatZoneName(region.zone, 'title')}
             </p>
             <div className="py-3 text-center">
               <p
                 className="font-mono text-6xl font-bold tabular-nums"
-                style={{ color: aqiColor(zone.aqi) }}
+                style={{ color: aqiColor(region.aqi) }}
               >
-                {zone.aqi}
+                {region.aqi}
               </p>
-              <p className="mt-1 text-xs uppercase text-muted-foreground">{zone.label}</p>
+              <p className="mt-1 text-xs uppercase text-muted-foreground">{region.label}</p>
             </div>
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span className="font-mono tabular-nums">
-                {formatMetric(zone.temperature, 'temp')}
+                {formatMetric(region.temperature, 'temp')}
               </span>
               <span className="font-mono tabular-nums">
-                {formatMetric(zone.humidity, 'humidity')}
+                {formatMetric(region.humidity, 'humidity')}
               </span>
             </div>
           </article>
@@ -75,11 +96,11 @@ export function ZoneAqiGrid() {
       </div>
 
       <div className="rounded-xl border border-border/50 bg-card p-6">
-        <ZoneAqiBarChart zones={zones} />
+        <ZoneAqiBarChart zones={regions} />
       </div>
 
       <p className="text-center text-xs text-muted-foreground/40">
-        public REST feed: <code>/api/v1/zones/aqi</code>, refreshes every 10 seconds
+        public monitoring-region feed: <code>/api/v1/zones/aqi</code>, refreshes every 10 seconds
       </p>
     </div>
   )

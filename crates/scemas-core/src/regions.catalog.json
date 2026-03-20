@@ -1,0 +1,94 @@
+{
+  "regions": [
+    {
+      "id": "ancaster_gateway",
+      "label": "ancaster gateway",
+      "sensorCode": "an"
+    },
+    {
+      "id": "battlefield",
+      "label": "battlefield village",
+      "sensorCode": "sc"
+    },
+    {
+      "id": "cootes_paradise",
+      "label": "cootes paradise / westdale",
+      "sensorCode": "mc"
+    },
+    {
+      "id": "crown_point_west",
+      "label": "crown point west",
+      "sensorCode": "ee"
+    },
+    {
+      "id": "downtown_core",
+      "label": "downtown core",
+      "sensorCode": "dt"
+    },
+    {
+      "id": "dundas_central",
+      "label": "dundas central",
+      "sensorCode": "du"
+    },
+    {
+      "id": "east_mountain",
+      "label": "east mountain",
+      "sensorCode": "em"
+    },
+    {
+      "id": "kirkendall_chedoke",
+      "label": "kirkendall / chedoke",
+      "sensorCode": "kd"
+    },
+    {
+      "id": "north_end_west",
+      "label": "west harbour",
+      "sensorCode": "wf"
+    },
+    {
+      "id": "red_hill_valley",
+      "label": "red hill valley",
+      "sensorCode": "rh"
+    },
+    {
+      "id": "west_mountain",
+      "label": "west mountain",
+      "sensorCode": "wm"
+    }
+  ],
+  "directAliases": {
+    "ancaster": "ancaster_gateway",
+    "downtown": "downtown_core",
+    "dundas": "dundas_central",
+    "east_end": "crown_point_west",
+    "kirkendall": "kirkendall_chedoke",
+    "kirkendall_north": "kirkendall_chedoke",
+    "kirkendall_south": "kirkendall_chedoke",
+    "mcmaster": "cootes_paradise",
+    "red_hill": "red_hill_valley",
+    "stoney_creek": "battlefield",
+    "ward_12": "ancaster_gateway",
+    "ward_13": "dundas_central",
+    "ward_14": "west_mountain",
+    "ward_3": "crown_point_west",
+    "ward_7": "east_mountain",
+    "ward_8": "west_mountain",
+    "waterfront": "north_end_west",
+    "west_harbour": "north_end_west"
+  },
+  "groupAliases": {
+    "ward_1": [
+      "cootes_paradise",
+      "kirkendall_chedoke",
+      "north_end_west"
+    ],
+    "ward_2": [
+      "downtown_core",
+      "north_end_west"
+    ],
+    "ward_5": [
+      "battlefield",
+      "red_hill_valley"
+    ]
+  }
+}

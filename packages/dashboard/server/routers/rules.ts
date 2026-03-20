@@ -79,6 +79,38 @@ export const rulesRouter = router({
     return parsed.data
   }),
 
+  edit: adminProcedure
+    .input(CreateThresholdRuleSchema.extend({ id: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      const { data, status } = await callRustEndpoint(`/internal/alerting/rules/${input.id}/edit`, {
+        method: 'POST',
+        body: JSON.stringify({
+          metricType: input.metricType,
+          thresholdValue: input.thresholdValue,
+          comparison: input.comparison,
+          zone: input.zone ? normalizeZoneId(input.zone) : null,
+          updatedBy: ctx.user.id,
+        }),
+      })
+
+      if (status >= 400) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: extractRustErrorMessage(data) ?? 'rule edit failed',
+        })
+      }
+
+      const parsed = RustThresholdRuleSchema.safeParse(data)
+      if (!parsed.success) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'rust alerting manager returned an invalid rule payload',
+        })
+      }
+
+      return parsed.data
+    }),
+
   update: adminProcedure
     .input(z.object({ id: z.string().uuid(), ruleStatus: z.enum(['active', 'inactive']) }))
     .mutation(async ({ input, ctx }) => {

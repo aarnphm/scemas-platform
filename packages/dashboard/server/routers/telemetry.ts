@@ -60,7 +60,7 @@ export const telemetryRouter = router({
   // get latest reading per sensor (for dashboard map)
   getLatest: protectedProcedure.query(async ({ ctx }) => {
     const manager = createDataDistributionManager(ctx.db)
-    return manager.getLatestSensorReadings(100)
+    return manager.getLatestSensorReadings(200)
   }),
 
   // time series from analytics table (5m_avg buckets, pivoted by metric type)

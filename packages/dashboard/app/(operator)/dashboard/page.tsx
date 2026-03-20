@@ -13,6 +13,9 @@ import { formatZoneName, normalizeZoneId } from '@/lib/zones'
 import { getDb, getManager } from '@/server/cached'
 import { DashboardChartsPanel, AlertFrequencyPanel } from './dashboard-charts'
 
+const LATEST_SENSOR_LIMIT = Math.max(200, sensorCatalog.length)
+const sensorCatalogById = new Map(sensorCatalog.map(sensor => [sensor.sensor_id, sensor]))
+
 export default function OperatorDashboard() {
   return (
     <div className="space-y-6">
@@ -54,7 +57,7 @@ export default function OperatorDashboard() {
 
 async function DashboardChartsPanelWrapper() {
   const manager = getManager()
-  const readings = await manager.getLatestSensorReadings(100)
+  const readings = await manager.getLatestSensorReadings(LATEST_SENSOR_LIMIT)
   const zones = Array.from(new Set(readings.map(r => r.zone))).toSorted()
   if (zones.length === 0) return null
   return <DashboardChartsPanel availableZones={zones} />
@@ -65,7 +68,7 @@ async function ZoneMapWrapper() {
   const db = getDb()
 
   const positions: SensorCatalogEntry[] = sensorCatalog
-  const latestReadings = await manager.getLatestSensorReadings(100)
+  const latestReadings = await manager.getLatestSensorReadings(LATEST_SENSOR_LIMIT)
   const activeAlerts = await db.query.alerts.findMany({ where: eq(alerts.status, 'active') })
 
   const alertCountsByZone: Record<string, number> = {}
@@ -85,10 +88,17 @@ async function ZoneMapWrapper() {
       siteName: pos.site_name,
       placement: pos.placement,
       provider: pos.provider,
+      siteProfile: pos.site_profile,
+      wardId: pos.ward_id,
+      wardLabel: pos.ward_label,
+      hostPlanningUnitId: pos.host_planning_unit_id,
+      hostPlanningUnitLabel: pos.host_planning_unit_label,
+      community: pos.tracking.community,
+      focusArea: pos.tracking.focus_area,
       telemetryUnit: pos.telemetry_unit,
       samplingIntervalSeconds: pos.sampling_interval_seconds,
-      wardIds: pos.tracking.ward_ids,
-      planningUnitIds: pos.tracking.planning_unit_ids,
+      regionWardLabels: pos.tracking.ward_labels,
+      regionNeighbourhoods: pos.tracking.neighbourhoods,
       zone: pos.zone,
       lat: pos.lat,
       lng: pos.lng,
@@ -112,8 +122,13 @@ async function ZoneMapWrapper() {
 
 async function SensorCoveragePanel() {
   const manager = getManager()
-  const latestReadings = await manager.getLatestSensorReadings(100)
-  const coveredRegions = new Set(latestReadings.map(reading => reading.zone)).size
+  const latestReadings = await manager.getLatestSensorReadings(LATEST_SENSOR_LIMIT)
+  const coveredRegions = new Set(
+    latestReadings.map(reading => normalizeZoneId(reading.zone, reading.sensorId)),
+  ).size
+  const stationCount = new Set(sensorCatalog.map(sensor => sensor.station_id)).size
+  const wardCount = new Set(sensorCatalog.map(sensor => sensor.ward_id)).size
+  const planningUnitCount = new Set(sensorCatalog.map(sensor => sensor.host_planning_unit_id)).size
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
@@ -122,19 +137,37 @@ async function SensorCoveragePanel() {
         <span className="font-mono tabular-nums">{latestReadings.length}</span> streams across{' '}
         <span className="font-mono tabular-nums">{coveredRegions}</span> regions
       </p>
+      <p className="text-xs text-muted-foreground">
+        network catalog: <span className="font-mono tabular-nums">{sensorCatalog.length}</span>{' '}
+        sensors, <span className="font-mono tabular-nums">{stationCount}</span> stations,{' '}
+        <span className="font-mono tabular-nums">{wardCount}</span> wards,{' '}
+        <span className="font-mono tabular-nums">{planningUnitCount}</span> planning units
+      </p>
       <div className="mt-4 max-h-80 space-y-1.5 overflow-y-auto text-sm text-muted-foreground">
-        {latestReadings.slice(0, 12).map(reading => (
-          <p
-            className="flex items-baseline justify-between gap-2"
-            key={`${reading.sensorId}-${reading.time.toISOString()}`}
-          >
-            <span className="truncate">{reading.sensorId}</span>
-            <span className="shrink-0 font-mono tabular-nums">
-              {reading.metricType.replaceAll('_', ' ')}{' '}
-              <span className="text-foreground">{reading.value}</span>
-            </span>
-          </p>
-        ))}
+        {latestReadings.slice(0, 12).map(reading => {
+          const sensor = sensorCatalogById.get(reading.sensorId)
+
+          return (
+            <div
+              className="flex items-start justify-between gap-3"
+              key={`${reading.sensorId}-${reading.time.toISOString()}`}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-foreground">
+                  {sensor?.display_name ?? reading.sensorId}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {sensor?.region_label ?? formatZoneName(reading.zone)} ·{' '}
+                  {sensor?.ward_label ?? 'ward n/a'}
+                </p>
+              </div>
+              <span className="shrink-0 font-mono tabular-nums">
+                {reading.metricType.replaceAll('_', ' ')}{' '}
+                <span className="text-foreground">{reading.value}</span>
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -142,7 +175,7 @@ async function SensorCoveragePanel() {
 
 async function MetricCards() {
   const manager = getManager()
-  const latestReadings = await manager.getLatestSensorReadings(100)
+  const latestReadings = await manager.getLatestSensorReadings(LATEST_SENSOR_LIMIT)
   const metricSummary = summarizeLatestMetrics(latestReadings)
 
   return (

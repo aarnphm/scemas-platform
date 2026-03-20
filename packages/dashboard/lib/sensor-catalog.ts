@@ -1,5 +1,5 @@
-import sensorCatalogData from '../../../data/hamilton-sensor-catalog.json'
 import hamiltonMonitoringRegionsData from '../../../data/hamilton-monitoring-regions.json'
+import sensorCatalogData from '../../../data/hamilton-sensor-catalog.json'
 
 export type SensorSimulationProfile = {
   mean: number
@@ -18,8 +18,15 @@ export type SensorCatalogEntry = {
   zone: string
   region_label: string
   site_name: string
+  site_profile: string
   placement: string
   provider: string
+  ward_id: string
+  ward_label: string
+  host_planning_unit_id: string
+  host_planning_unit_label: string
+  community: string
+  focus_area: string
   sampling_interval_seconds: number
   telemetry_unit: string
   install_height_m: number
@@ -31,7 +38,12 @@ export type SensorCatalogEntry = {
 
 export type SensorTrackingContext = {
   ward_ids: string[]
+  ward_labels: string[]
   planning_unit_ids: string[]
+  planning_unit_labels: string[]
+  community: string
+  neighbourhoods: string[]
+  focus_area: string
   maintenance_cycle_days: number
 }
 
@@ -39,27 +51,35 @@ type RawSensorCatalogEntry = Omit<SensorCatalogEntry, 'tracking'>
 
 const rawSensorCatalog: RawSensorCatalogEntry[] = sensorCatalogData
 
-const planningUnitIdsByZone = new Map<string, string[]>(
+const regionMetadataByZone = new Map(
   hamiltonMonitoringRegionsData.features.map(feature => [
     feature.properties.zoneId,
-    feature.properties.planningUnits,
+    {
+      wardIds: feature.properties.wardIds,
+      wardLabels: feature.properties.wardLabels,
+      planningUnitIds: feature.properties.planningUnits,
+      planningUnitLabels: feature.properties.planningUnitDetails.map(detail => detail.label),
+      community: feature.properties.community,
+      neighbourhoods: feature.properties.neighbourhoods,
+      focusArea: feature.properties.focusArea,
+    },
   ]),
 )
 
-const wardIdsByZone: Record<string, string[]> = {
-  downtown_core: ['ward_2'],
-  west_mountain: ['ward_8'],
-  crown_point_west: ['ward_3'],
-  north_end_west: ['ward_2'],
-  cootes_paradise: ['ward_1'],
-  battlefield: ['ward_5'],
-}
+export const sensorCatalog: SensorCatalogEntry[] = rawSensorCatalog.map(sensor => {
+  const regionMetadata = regionMetadataByZone.get(sensor.zone)
 
-export const sensorCatalog: SensorCatalogEntry[] = rawSensorCatalog.map(sensor => ({
-  ...sensor,
-  tracking: {
-    ward_ids: wardIdsByZone[sensor.zone] ?? [],
-    planning_unit_ids: planningUnitIdsByZone.get(sensor.zone) ?? [],
-    maintenance_cycle_days: sensor.device_type === 'air_quality' ? 45 : 90,
-  },
-}))
+  return {
+    ...sensor,
+    tracking: {
+      ward_ids: regionMetadata?.wardIds ?? [],
+      ward_labels: regionMetadata?.wardLabels ?? [],
+      planning_unit_ids: regionMetadata?.planningUnitIds ?? [],
+      planning_unit_labels: regionMetadata?.planningUnitLabels ?? [],
+      community: regionMetadata?.community ?? sensor.community,
+      neighbourhoods: regionMetadata?.neighbourhoods ?? [],
+      focus_area: regionMetadata?.focusArea ?? sensor.focus_area,
+      maintenance_cycle_days: sensor.device_type === 'air_quality' ? 45 : 90,
+    },
+  }
+})

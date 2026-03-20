@@ -24,17 +24,17 @@ function aqiColor(aqi: number): string {
 export function ZoneAqiBarChart({ zones }: { zones: ZoneAQI[] }) {
   if (zones.length === 0) return null
 
-  const data = zones.map(z => ({ zone: formatZoneName(z.zone, 'title'), aqi: z.aqi }))
+  const data = zones.map(zone => ({ region: formatZoneName(zone.zone, 'title'), aqi: zone.aqi }))
 
   return (
     <ChartContainer className="h-48 w-full" config={chartConfig}>
       <BarChart data={data} layout="vertical" margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
         <XAxis allowDecimals={false} domain={[0, 'auto']} tick={{ fontSize: 11 }} type="number" />
-        <YAxis dataKey="zone" tick={{ fontSize: 11 }} type="category" width={100} />
+        <YAxis dataKey="region" tick={{ fontSize: 11 }} type="category" width={132} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Bar dataKey="aqi" radius={[0, 4, 4, 0]}>
           {data.map(entry => (
-            <Cell fill={aqiColor(entry.aqi)} key={entry.zone} />
+            <Cell fill={aqiColor(entry.aqi)} key={entry.region} />
           ))}
         </Bar>
       </BarChart>

@@ -26,42 +26,41 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ rul
           back to rules
         </Link>
       </div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-balance">rule detail</h1>
-          <p className="text-sm text-muted-foreground text-pretty">
-            {rule.metricType.replaceAll('_', ' ')} {rule.comparison} {rule.thresholdValue}, scope:{' '}
-            {rule.zone ? formatZoneName(rule.zone) : 'all regions'}
-          </p>
-        </div>
-        <HydrateClient>
-          <RuleActions ruleId={rule.id} ruleStatus={rule.ruleStatus} />
-        </HydrateClient>
-      </div>
-      <div className="rounded-lg border border-border bg-card p-4">
-        <dl className="space-y-3 text-sm">
-          <div>
-            <dt className="text-muted-foreground">metric</dt>
-            <dd>{rule.metricType.replaceAll('_', ' ')}</dd>
+      <HydrateClient>
+        <RuleActions
+          comparison={rule.comparison}
+          metricType={rule.metricType}
+          ruleId={rule.id}
+          ruleStatus={rule.ruleStatus}
+          thresholdValue={rule.thresholdValue}
+          zone={rule.zone}
+        >
+          <div className="rounded-lg border border-border bg-card p-4">
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-muted-foreground">metric</dt>
+                <dd>{rule.metricType.replaceAll('_', ' ')}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">comparison</dt>
+                <dd>{rule.comparison}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">threshold</dt>
+                <dd className="font-mono tabular-nums">{rule.thresholdValue}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">scope</dt>
+                <dd>{rule.zone ? formatZoneName(rule.zone) : 'all regions'}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">status</dt>
+                <dd>{rule.ruleStatus}</dd>
+              </div>
+            </dl>
           </div>
-          <div>
-            <dt className="text-muted-foreground">comparison</dt>
-            <dd>{rule.comparison}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">threshold</dt>
-            <dd className="font-mono tabular-nums">{rule.thresholdValue}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">scope</dt>
-            <dd>{rule.zone ? formatZoneName(rule.zone) : 'all regions'}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">status</dt>
-            <dd>{rule.ruleStatus}</dd>
-          </div>
-        </dl>
-      </div>
+        </RuleActions>
+      </HydrateClient>
     </div>
   )
 }

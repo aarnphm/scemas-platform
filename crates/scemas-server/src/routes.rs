@@ -23,6 +23,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/internal/auth/signup", post(signup))
         .route("/internal/auth/login", post(login))
         .route("/internal/alerting/rules", post(create_rule))
+        .route("/internal/alerting/rules/{rule_id}/edit", post(edit_rule))
         .route(
             "/internal/alerting/rules/{rule_id}/status",
             post(update_rule_status),
@@ -87,6 +88,25 @@ async fn create_rule(
             request.comparison,
             request.zone,
             request.created_by,
+        )
+        .await?;
+    Ok(Json(rule))
+}
+
+async fn edit_rule(
+    State(state): State<AppState>,
+    Path(rule_id): Path<Uuid>,
+    Json(request): Json<EditRuleRequest>,
+) -> Result<Json<ThresholdRule>> {
+    let rule = state
+        .alerting
+        .edit_rule(
+            rule_id,
+            request.metric_type,
+            request.threshold_value,
+            request.comparison,
+            request.zone,
+            request.updated_by,
         )
         .await?;
     Ok(Json(rule))
@@ -241,6 +261,16 @@ struct CreateRuleRequest {
     comparison: Comparison,
     zone: Option<String>,
     created_by: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EditRuleRequest {
+    metric_type: MetricType,
+    threshold_value: f64,
+    comparison: Comparison,
+    zone: Option<String>,
+    updated_by: Uuid,
 }
 
 #[derive(Debug, Deserialize)]

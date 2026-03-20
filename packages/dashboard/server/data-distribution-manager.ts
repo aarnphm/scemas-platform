@@ -32,7 +32,7 @@ type AnalyticsAggregateRow = {
 export class DataDistributionManager {
   constructor(private readonly db: Database) {}
 
-  async getLatestSensorReadings(limit = 100): Promise<LatestSensorReading[]> {
+  async getLatestSensorReadings(limit = 200): Promise<LatestSensorReading[]> {
     const safeLimit = Math.max(1, Math.min(limit, 500))
 
     const rows = await this.db.$client`

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { trpc } from '@/lib/trpc'
-import { formatZoneName } from '@/lib/zones'
+import { formatZoneName, zoneOptions } from '@/lib/zones'
 
 const metricTypes = ['temperature', 'humidity', 'air_quality', 'noise_level'] as const
 const comparisons = ['gt', 'gte', 'lt', 'lte'] as const
@@ -18,11 +18,27 @@ export function RulesManager() {
   const utils = trpc.useUtils()
   const [page, setPage] = useState(0)
   const [submissionError, setSubmissionError] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const rulesQuery = trpc.rules.list.useQuery()
   const createRule = trpc.rules.create.useMutation({
     onSuccess: createdRule => {
       setSubmissionError(null)
       utils.rules.list.setData(undefined, currentRules => prependRule(currentRules, createdRule))
+    },
+    onError: error => {
+      setSubmissionError(error.message)
+    },
+  })
+  const editRule = trpc.rules.edit.useMutation({
+    onSuccess: (editedRule, variables) => {
+      setSubmissionError(null)
+      setEditingId(null)
+      utils.rules.list.setData(
+        undefined,
+        currentRules =>
+          currentRules?.map(rule => (rule.id === variables.id ? editedRule : rule)) ?? currentRules,
+      )
+      void utils.rules.list.invalidate()
     },
     onError: error => {
       setSubmissionError(error.message)
@@ -129,11 +145,7 @@ export function RulesManager() {
         className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-5"
         onSubmit={handleSubmit}
       >
-        <select
-          className="h-7 w-full rounded-md border border-input bg-input/20 px-2 text-sm md:text-xs/relaxed dark:bg-input/30"
-          defaultValue="temperature"
-          name="metricType"
-        >
+        <select className={selectClass} defaultValue="temperature" name="metricType">
           {metricTypes.map(metricType => (
             <option key={metricType} value={metricType}>
               {metricType.replaceAll('_', ' ')}
@@ -141,11 +153,7 @@ export function RulesManager() {
           ))}
         </select>
 
-        <select
-          className="h-7 w-full rounded-md border border-input bg-input/20 px-2 text-sm md:text-xs/relaxed dark:bg-input/30"
-          defaultValue="gt"
-          name="comparison"
-        >
+        <select className={selectClass} defaultValue="gt" name="comparison">
           {comparisons.map(comparison => (
             <option key={comparison} value={comparison}>
               {comparison}
@@ -160,7 +168,14 @@ export function RulesManager() {
           step="0.1"
           type="number"
         />
-        <Input name="zone" placeholder="optional region override" />
+        <select className={selectClass} defaultValue="" name="zone">
+          <option value="">all regions</option>
+          {zoneOptions.map(zone => (
+            <option key={zone.id} value={zone.id}>
+              {zone.label}
+            </option>
+          ))}
+        </select>
         <Button disabled={createRule.isPending} type="submit">
           {createRule.isPending ? <Spinner /> : 'create rule'}
         </Button>
@@ -181,53 +196,66 @@ export function RulesManager() {
         ) : (
           <>
             <div className="divide-y divide-border">
-              {pageRules.map(rule => (
-                <div
-                  className="flex flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between"
-                  key={rule.id}
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">
-                      <Link
-                        className="underline-offset-4 hover:underline"
-                        href={`/rules/${rule.id}`}
-                      >
-                        {rule.metricType.replaceAll('_', ' ')}
-                      </Link>{' '}
-                      {rule.comparison}{' '}
-                      <span className="font-mono tabular-nums">{rule.thresholdValue}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      scope: {rule.zone ? formatZoneName(rule.zone) : 'all regions'} | status:{' '}
-                      {rule.ruleStatus}
-                    </p>
-                  </div>
+              {pageRules.map(rule =>
+                editingId === rule.id ? (
+                  <RuleEditRow
+                    key={rule.id}
+                    onCancel={() => setEditingId(null)}
+                    onSave={values => editRule.mutate({ id: rule.id, ...values })}
+                    rule={rule}
+                    saving={editRule.isPending}
+                  />
+                ) : (
+                  <div
+                    className="flex flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between"
+                    key={rule.id}
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">
+                        <Link
+                          className="underline-offset-4 hover:underline"
+                          href={`/rules/${rule.id}`}
+                        >
+                          {rule.metricType.replaceAll('_', ' ')}
+                        </Link>{' '}
+                        {rule.comparison}{' '}
+                        <span className="font-mono tabular-nums">{rule.thresholdValue}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        scope: {rule.zone ? formatZoneName(rule.zone) : 'all regions'} | status:{' '}
+                        {rule.ruleStatus}
+                      </p>
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      disabled={updateRule.isPending}
-                      onClick={() =>
-                        updateRule.mutate({
-                          id: rule.id,
-                          ruleStatus: rule.ruleStatus === 'active' ? 'inactive' : 'active',
-                        })
-                      }
-                      type="button"
-                      variant="outline"
-                    >
-                      {rule.ruleStatus === 'active' ? 'pause' : 'activate'}
-                    </Button>
-                    <Button
-                      disabled={deleteRule.isPending}
-                      onClick={() => deleteRule.mutate({ id: rule.id })}
-                      type="button"
-                      variant="destructive"
-                    >
-                      delete
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={() => setEditingId(rule.id)} type="button" variant="outline">
+                        edit
+                      </Button>
+                      <Button
+                        disabled={updateRule.isPending}
+                        onClick={() =>
+                          updateRule.mutate({
+                            id: rule.id,
+                            ruleStatus: rule.ruleStatus === 'active' ? 'inactive' : 'active',
+                          })
+                        }
+                        type="button"
+                        variant="outline"
+                      >
+                        {rule.ruleStatus === 'active' ? 'pause' : 'activate'}
+                      </Button>
+                      <Button
+                        disabled={deleteRule.isPending}
+                        onClick={() => deleteRule.mutate({ id: rule.id })}
+                        type="button"
+                        variant="destructive"
+                      >
+                        delete
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ),
+              )}
             </div>
             <ListPagination
               onPageChange={setPage}
@@ -239,6 +267,86 @@ export function RulesManager() {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+const selectClass =
+  'h-7 w-full rounded-md border border-input bg-input/20 px-2 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 md:text-xs/relaxed dark:bg-input/30'
+
+function RuleEditRow({
+  rule,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  rule: ThresholdRule
+  onSave: (values: {
+    metricType: MetricType
+    thresholdValue: number
+    comparison: Comparison
+    zone: string | null
+  }) => void
+  onCancel: () => void
+  saving: boolean
+}) {
+  const [metricType, setMetricType] = useState<MetricType>(rule.metricType)
+  const [comparison, setComparison] = useState<Comparison>(rule.comparison)
+  const [thresholdValue, setThresholdValue] = useState(String(rule.thresholdValue))
+  const [zone, setZone] = useState(rule.zone ?? '')
+
+  function handleSave() {
+    const parsed = Number(thresholdValue)
+    if (!Number.isFinite(parsed) || parsed <= 0) return
+
+    onSave({ metricType, thresholdValue: parsed, comparison, zone: zone || null })
+  }
+
+  return (
+    <div className="grid gap-3 px-4 py-4 md:grid-cols-6">
+      <select
+        className={selectClass}
+        onChange={e => setMetricType(e.target.value as MetricType)}
+        value={metricType}
+      >
+        {metricTypes.map(mt => (
+          <option key={mt} value={mt}>
+            {mt.replaceAll('_', ' ')}
+          </option>
+        ))}
+      </select>
+      <select
+        className={selectClass}
+        onChange={e => setComparison(e.target.value as Comparison)}
+        value={comparison}
+      >
+        {comparisons.map(c => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+      <Input
+        min="1"
+        onChange={e => setThresholdValue(e.target.value)}
+        step="0.1"
+        type="number"
+        value={thresholdValue}
+      />
+      <select className={selectClass} onChange={e => setZone(e.target.value)} value={zone}>
+        <option value="">all regions</option>
+        {zoneOptions.map(z => (
+          <option key={z.id} value={z.id}>
+            {z.label}
+          </option>
+        ))}
+      </select>
+      <Button disabled={saving} onClick={handleSave} type="button">
+        {saving ? <Spinner /> : 'save'}
+      </Button>
+      <Button disabled={saving} onClick={onCancel} type="button" variant="outline">
+        cancel
+      </Button>
     </div>
   )
 }
