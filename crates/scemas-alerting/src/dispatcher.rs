@@ -7,6 +7,7 @@
 // in the database. a real system would send emails/webhooks.
 
 use scemas_core::models::{Alert, AlertSubscription};
+use scemas_core::regions;
 
 /// check if an alert matches an operator's subscription preferences
 pub fn matches_subscription(alert: &Alert, sub: &AlertSubscription) -> bool {
@@ -18,7 +19,9 @@ pub fn matches_subscription(alert: &Alert, sub: &AlertSubscription) -> bool {
         return false;
     }
 
-    if !sub.zones.is_empty() && !sub.zones.contains(&alert.zone) {
+    if !sub.zones.is_empty()
+        && !regions::zones_filter_match(&sub.zones, &alert.zone, Some(&alert.sensor_id))
+    {
         return false;
     }
 
@@ -50,7 +53,7 @@ mod tests {
             severity: Severity::Warning,
             status: AlertStatus::Active,
             triggered_value: 38.0,
-            zone: "downtown".into(),
+            zone: "downtown_core".into(),
             metric_type: MetricType::Temperature,
             created_at: chrono::Utc::now(),
         }
@@ -61,7 +64,7 @@ mod tests {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             metric_types: vec![MetricType::Temperature],
-            zones: vec!["downtown".into()],
+            zones: vec!["downtown_core".into()],
             min_severity: Severity::Low,
         }
     }
@@ -88,5 +91,13 @@ mod tests {
         let mut sub = sample_subscription();
         sub.min_severity = Severity::Critical;
         assert!(!matches_subscription(&alert, &sub));
+    }
+
+    #[test]
+    fn matches_shared_ward_subscription_when_alert_sensor_resolves_region() {
+        let alert = sample_alert();
+        let mut sub = sample_subscription();
+        sub.zones = vec!["ward_2".into()];
+        assert!(matches_subscription(&alert, &sub));
     }
 }

@@ -161,6 +161,7 @@ these are server-to-server routes used by the next/tRPC layer and seed scripts, 
 |-------|--------|---------|
 | `/internal/auth/signup` | `POST` | create account and issue session |
 | `/internal/auth/login` | `POST` | authenticate and issue session |
+| `/internal/auth/reset-password` | `POST` | admin password reset (argon2 hash) |
 | `/internal/alerting/rules` | `POST` | create threshold rule |
 | `/internal/alerting/rules/{rule_id}/status` | `POST` | activate or pause rule |
 | `/internal/alerting/rules/{rule_id}/delete` | `POST` | delete rule |

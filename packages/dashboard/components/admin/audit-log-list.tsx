@@ -5,7 +5,7 @@ import { ListPagination } from '@/components/list-pagination'
 import { Spinner } from '@/components/ui/spinner'
 import { trpc } from '@/lib/trpc'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 5
 
 export function AuditLogList() {
   const [page, setPage] = useState(0)

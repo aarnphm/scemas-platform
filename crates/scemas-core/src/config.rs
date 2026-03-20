@@ -29,7 +29,7 @@ impl Config {
         let device_auth_secret = std::env::var("DEVICE_AUTH_SECRET")
             .map_err(|_| Error::Internal("DEVICE_AUTH_SECRET not set".into()))?;
         let device_catalog_path = std::env::var("DEVICE_CATALOG_PATH")
-            .unwrap_or_else(|_| "data/hamilton-sensors.json".into());
+            .unwrap_or_else(|_| "data/hamilton-sensor-catalog.json".into());
 
         Ok(Self {
             database_url,

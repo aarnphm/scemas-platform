@@ -5,6 +5,7 @@ import { type FormEvent, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { trpc } from '@/lib/trpc'
+import { formatZoneName } from '@/lib/zones'
 
 const metricTypes = ['temperature', 'humidity', 'air_quality', 'noise_level'] as const
 const severityOptions = [
@@ -91,7 +92,7 @@ export function SubscriptionManager({ availableZones }: SubscriptionManagerProps
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-sm font-medium">zone filters</h2>
+        <h2 className="text-sm font-medium">region filters</h2>
         <div className="grid gap-2 md:grid-cols-2">
           {availableZones.map(zone => (
             <label className="flex items-center gap-2 text-sm" key={zone}>
@@ -101,7 +102,7 @@ export function SubscriptionManager({ availableZones }: SubscriptionManagerProps
                 type="checkbox"
                 value={zone}
               />
-              {zone.replaceAll('_', ' ')}
+              {formatZoneName(zone)}
             </label>
           ))}
         </div>

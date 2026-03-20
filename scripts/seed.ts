@@ -1,37 +1,41 @@
 // seed script: continuously generates sensor data using poisson/gamma distributions
-// usage: bun run scripts/seed.ts [--spike] [--rate <readings-per-second>] [--remote <url>]
+// usage: bun run scripts/seed.ts [--spike] [--spike-ratio <0..1>] [--rate <readings-per-second>] [--remote <url>]
 //   ctrl-c to stop and print summary
 
 const seedOptions = parseSeedOptions(process.argv.slice(2))
 const RUST_URL = seedOptions.remoteUrl ?? process.env.INTERNAL_RUST_URL ?? 'http://localhost:3001'
-const DEVICE_AUTH_SECRET =
-  process.env.DEVICE_AUTH_SECRET ?? 'change-me-device-ingest-secret'
+const DEVICE_AUTH_SECRET = process.env.DEVICE_AUTH_SECRET ?? 'change-me-device-ingest-secret'
 
 interface Sensor {
   sensor_id: string
+  asset_id: string
+  station_id: string
+  display_name: string
   device_type: string
   zone: string
+  region_label: string
+  site_name: string
+  placement: string
+  provider: string
+  sampling_interval_seconds: number
+  telemetry_unit: string
+  install_height_m: number
+  simulation: SensorSimulationProfile
 }
 
-// gamma distribution parameters per metric type
-// shape k = mean^2/variance, scale theta = variance/mean
-// chosen so k*theta ~ real-world baseline mean for hamilton, ON
-const gammaParams: Record<
-  string,
-  { shape: number; scale: number; clamp: [number, number] }
-> = {
-  temperature: { shape: 12.96, scale: 1.39, clamp: [-10, 45] },
-  humidity: { shape: 30.25, scale: 1.82, clamp: [0, 100] },
-  air_quality: { shape: 5.44, scale: 6.43, clamp: [0, 500] },
-  noise_level: { shape: 17.36, scale: 2.88, clamp: [0, 130] },
+type SensorSimulationProfile = {
+  mean: number
+  variance: number
+  spike: number
+  min: number
+  max: number
 }
 
-// spike values that should trigger alerts
-const spikeValues: Record<string, number> = {
-  temperature: 42,
-  humidity: 95,
-  air_quality: 180,
-  noise_level: 95,
+type WeightedSensor = { sensor: Sensor; cumulativeWeight: number }
+
+type GeneratedReading = {
+  isSpike: boolean
+  reading: { sensorId: string; metricType: string; value: number; zone: string; timestamp: string }
 }
 
 // marsaglia-tsang method for Gamma(shape, 1) where shape >= 1
@@ -77,36 +81,39 @@ function exponentialSample(rate: number): number {
   return -Math.log(Math.random()) / rate
 }
 
-function generateReading(sensor: Sensor) {
-  const params = gammaParams[sensor.device_type]
-  if (!params) return null
+function generateReading(sensor: Sensor): GeneratedReading {
+  const params = gammaParamsForSensor(sensor)
+  const isSpike = seedOptions.isSpike || Math.random() < seedOptions.spikeRatio
 
-  const raw = seedOptions.isSpike
-    ? (spikeValues[sensor.device_type] ?? params.shape * params.scale)
-    : gammaSample(params.shape, params.scale)
+  const raw = isSpike ? sensor.simulation.spike : gammaSample(params.shape, params.scale)
 
-  const value = Math.max(params.clamp[0], Math.min(params.clamp[1], raw))
+  const value = Math.max(sensor.simulation.min, Math.min(sensor.simulation.max, raw))
 
   return {
-    sensorId: sensor.sensor_id,
-    metricType: sensor.device_type,
-    value: Math.round(value * 100) / 100,
-    zone: sensor.zone,
-    timestamp: new Date().toISOString(),
+    isSpike,
+    reading: {
+      sensorId: sensor.sensor_id,
+      metricType: sensor.device_type,
+      value: Math.round(value * 100) / 100,
+      zone: sensor.zone,
+      timestamp: new Date().toISOString(),
+    },
   }
 }
 
 async function main() {
-  const sensorsFile = Bun.file('./data/hamilton-sensors.json')
+  const sensorsFile = Bun.file('./data/hamilton-sensor-catalog.json')
   const sensors: Sensor[] = await sensorsFile.json()
+  const weightedSensors = buildWeightedSensorIndex(sensors)
 
   console.log(
-    `continuous seed: ${sensors.length} sensors, \u03bb=${formatRate(seedOptions.ratePerSecond)}/s (${seedOptions.isSpike ? 'SPIKE' : 'normal'} mode)`,
+    `continuous seed: ${sensors.length} sensors, \u03bb=${formatRate(seedOptions.ratePerSecond)}/s (${formatSpikeMode(seedOptions)})`,
   )
   console.log('ctrl-c to stop\n')
 
   let accepted = 0
   let rejected = 0
+  let spikeEvents = 0
   let total = 0
   const startTime = Date.now()
 
@@ -116,9 +123,18 @@ async function main() {
   })
 
   while (running) {
-    const sensor = sensors[Math.floor(Math.random() * sensors.length)]
-    const reading = generateReading(sensor)
-    if (!reading) continue
+    const sensor = pickSensor(weightedSensors)
+    if (!sensor) {
+      console.log('  \u2717 no sensors available in the catalog')
+      break
+    }
+
+    const generatedReading = generateReading(sensor)
+    const reading = generatedReading.reading
+    const spikeSuffix = generatedReading.isSpike ? ' [SPIKE]' : ''
+    if (generatedReading.isSpike) {
+      spikeEvents += 1
+    }
 
     total++
 
@@ -137,16 +153,20 @@ async function main() {
         accepted++
         await res.json()
         console.log(
-          `  \u2713 ${reading.sensorId}: ${reading.metricType} = ${reading.value}`,
+          `  \u2713 ${sensor.display_name}: ${reading.value} ${sensor.telemetry_unit} at ${sensor.site_name} (${sensor.region_label})${spikeSuffix}`,
         )
       } else {
         rejected++
         const err = await res.json()
-        console.log(`  \u2717 ${reading.sensorId}: ${err.error}`)
+        console.log(
+          `  \u2717 ${sensor.display_name}: ${err.error} (${sensor.region_label})${spikeSuffix}`,
+        )
       }
     } catch {
       rejected++
-      console.log(`  \u2717 ${reading.sensorId}: connection failed`)
+      console.log(
+        `  \u2717 ${sensor.display_name}: connection failed (${sensor.region_label})${spikeSuffix}`,
+      )
     }
 
     // poisson inter-arrival: sleep for Exp(lambda) seconds
@@ -157,12 +177,13 @@ async function main() {
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
   const rate = (total / parseFloat(elapsed)).toFixed(1)
   console.log(
-    `\nstopped. ${elapsed}s elapsed, ${total} sent (${rate}/s), accepted: ${accepted}, rejected: ${rejected}`,
+    `\nstopped. ${elapsed}s elapsed, ${total} sent (${rate}/s), spikes: ${spikeEvents} (${formatRatio(total === 0 ? 0 : spikeEvents / total)}), accepted: ${accepted}, rejected: ${rejected}`,
   )
 }
 
 function parseSeedOptions(args: string[]): SeedOptions {
   let isSpike = false
+  let spikeRatio = 0
   let ratePerSecond = 2
   let remoteUrl: string | undefined
 
@@ -171,6 +192,22 @@ function parseSeedOptions(args: string[]): SeedOptions {
 
     if (argument === '--spike') {
       isSpike = true
+      continue
+    }
+
+    if (argument === '--spike-ratio') {
+      const nextArgument = args[index + 1]
+      if (!nextArgument) {
+        printUsageAndExit(1, 'missing value for --spike-ratio')
+      }
+
+      spikeRatio = parseSpikeRatio(nextArgument)
+      index += 1
+      continue
+    }
+
+    if (argument.startsWith('--spike-ratio=')) {
+      spikeRatio = parseSpikeRatio(argument.slice('--spike-ratio='.length))
       continue
     }
 
@@ -213,11 +250,11 @@ function parseSeedOptions(args: string[]): SeedOptions {
     printUsageAndExit(1, `unknown argument: ${argument}`)
   }
 
-  return {
-    isSpike,
-    ratePerSecond,
-    remoteUrl,
+  if (isSpike && spikeRatio > 0) {
+    printUsageAndExit(1, 'use either --spike or --spike-ratio, not both')
   }
+
+  return { isSpike, spikeRatio, ratePerSecond, remoteUrl }
 }
 
 function parsePositiveRate(value: string): number {
@@ -229,18 +266,67 @@ function parsePositiveRate(value: string): number {
   return parsedValue
 }
 
+function parseSpikeRatio(value: string): number {
+  const parsedValue = Number(value)
+  if (!Number.isFinite(parsedValue) || parsedValue < 0 || parsedValue > 1) {
+    printUsageAndExit(1, `invalid --spike-ratio value: ${value}`)
+  }
+
+  return parsedValue
+}
+
+function gammaParamsForSensor(sensor: Sensor) {
+  const mean = Math.max(sensor.simulation.mean, 0.01)
+  const variance = Math.max(sensor.simulation.variance, 0.01)
+
+  return { shape: (mean * mean) / variance, scale: variance / mean }
+}
+
+function buildWeightedSensorIndex(sensors: Sensor[]): WeightedSensor[] {
+  const weightedSensors: WeightedSensor[] = []
+  let cumulativeWeight = 0
+
+  for (const sensor of sensors) {
+    cumulativeWeight += 1 / Math.max(sensor.sampling_interval_seconds, 1)
+    weightedSensors.push({ sensor, cumulativeWeight })
+  }
+
+  return weightedSensors
+}
+
+function pickSensor(weightedSensors: WeightedSensor[]): Sensor | null {
+  const totalWeight = weightedSensors.at(-1)?.cumulativeWeight
+  if (!totalWeight) {
+    return null
+  }
+
+  const target = Math.random() * totalWeight
+  for (const weightedSensor of weightedSensors) {
+    if (target <= weightedSensor.cumulativeWeight) {
+      return weightedSensor.sensor
+    }
+  }
+
+  return weightedSensors.at(-1)?.sensor ?? null
+}
+
 function printUsageAndExit(exitCode: number, errorMessage?: string): never {
   if (errorMessage) {
     console.error(`[scemas] ${errorMessage}`)
     console.error('')
   }
 
-  console.log('usage: bun run scripts/seed.ts [--spike] [--rate <readings-per-second>] [--remote <url>]')
+  console.log(
+    'usage: bun run scripts/seed.ts [--spike] [--spike-ratio <0..1>] [--rate <readings-per-second>] [--remote <url>]',
+  )
   console.log('')
   console.log('options:')
   console.log('  --spike          generate readings that should trigger alerts')
+  console.log('  --spike-ratio    randomly emit spike readings at the given share, from 0 to 1')
   console.log('  --rate <value>   aggregate poisson arrival rate across all sensors')
-  console.log('  --remote <url>   override the rust engine URL (default: INTERNAL_RUST_URL or localhost:3001)')
+  console.log(
+    '  --remote <url>   override the rust engine URL (default: INTERNAL_RUST_URL or localhost:3001)',
+  )
   console.log('  --help           show this help message')
   process.exit(exitCode)
 }
@@ -249,8 +335,25 @@ function formatRate(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1)
 }
 
+function formatRatio(value: number): string {
+  return `${(value * 100).toFixed(1)}%`
+}
+
+function formatSpikeMode(options: SeedOptions): string {
+  if (options.isSpike) {
+    return 'SPIKE mode'
+  }
+
+  if (options.spikeRatio > 0) {
+    return `mixed mode, spike ratio ${formatRatio(options.spikeRatio)}`
+  }
+
+  return 'normal mode'
+}
+
 type SeedOptions = {
   isSpike: boolean
+  spikeRatio: number
   ratePerSecond: number
   remoteUrl?: string
 }

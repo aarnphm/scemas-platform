@@ -5,6 +5,7 @@ import { CreateThresholdRuleSchema, ThresholdRuleSchema, type ThresholdRule } fr
 import { TRPCError } from '@trpc/server'
 import { desc } from 'drizzle-orm'
 import { z } from 'zod'
+import { normalizeZoneId } from '@/lib/zones'
 import { callRustEndpoint, extractRustErrorMessage } from '../rust-client'
 import { router, adminProcedure } from '../trpc'
 
@@ -38,7 +39,7 @@ function normalizeThresholdRule(rule: {
   zone: string | null
   ruleStatus: string
 }): ThresholdRule {
-  return ThresholdRuleSchema.parse(rule)
+  return ThresholdRuleSchema.parse({ ...rule, zone: rule.zone ? normalizeZoneId(rule.zone) : null })
 }
 
 export const rulesRouter = router({
@@ -53,7 +54,11 @@ export const rulesRouter = router({
   create: adminProcedure.input(CreateThresholdRuleSchema).mutation(async ({ input, ctx }) => {
     const { data, status } = await callRustEndpoint('/internal/alerting/rules', {
       method: 'POST',
-      body: JSON.stringify({ ...input, createdBy: ctx.user.id }),
+      body: JSON.stringify({
+        ...input,
+        zone: input.zone ? normalizeZoneId(input.zone) : null,
+        createdBy: ctx.user.id,
+      }),
     })
 
     if (status >= 400) {

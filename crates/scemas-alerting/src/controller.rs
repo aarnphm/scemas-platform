@@ -12,6 +12,7 @@ use scemas_core::models::{
     Alert, AlertStatus, AlertSubscription, Comparison, IndividualSensorReading, MetricType,
     RuleStatus, Severity, ThresholdRule,
 };
+use scemas_core::regions;
 use sqlx::PgPool;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -86,13 +87,17 @@ impl AlertingManager {
         zone: Option<String>,
         created_by: Uuid,
     ) -> Result<ThresholdRule> {
+        let normalized_zone = zone
+            .as_deref()
+            .map(|zone| regions::normalize_zone_id(zone, None));
+
         let row: ThresholdRuleRow = sqlx::query_as(
             "INSERT INTO threshold_rules (metric_type, threshold_value, comparison, zone, rule_status, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, metric_type, threshold_value, comparison, zone, rule_status",
         )
         .bind(metric_type.to_string())
         .bind(threshold_value)
         .bind(comparison_label(&comparison))
-        .bind(&zone)
+        .bind(&normalized_zone)
         .bind(rule_status_label(&RuleStatus::Active))
         .bind(created_by)
         .fetch_one(&self.db)
@@ -108,7 +113,7 @@ impl AlertingManager {
                 "metricType": metric_type.to_string(),
                 "thresholdValue": threshold_value,
                 "comparison": comparison_label(&comparison),
-                "zone": zone,
+                "zone": normalized_zone,
             }),
         )
         .await?;
@@ -381,7 +386,7 @@ impl TryFrom<ThresholdRuleRow> for ThresholdRule {
             metric_type,
             threshold_value: row.threshold_value,
             comparison,
-            zone: row.zone,
+            zone: row.zone.map(|zone| regions::normalize_zone_id(&zone, None)),
             rule_status,
         })
     }
@@ -430,7 +435,12 @@ impl TryFrom<AlertSubscriptionRow> for AlertSubscription {
             id: row.id,
             user_id: row.user_id,
             metric_types,
-            zones: row.zones.unwrap_or_default(),
+            zones: row
+                .zones
+                .unwrap_or_default()
+                .into_iter()
+                .map(|zone| regions::normalize_zone_id(&zone, None))
+                .collect(),
             min_severity,
         })
     }

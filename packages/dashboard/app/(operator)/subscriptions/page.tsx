@@ -1,12 +1,13 @@
 import { SubscriptionManager } from '@/components/operator/subscription-manager'
 import { serverTrpc, HydrateClient } from '@/lib/trpc-server'
+import { normalizeZoneIds } from '@/lib/zones'
 import { getDb } from '@/server/cached'
 
 // ManageAlertSubscriptions boundary (innovative feature)
 export default async function SubscriptionsPage() {
   const db = getDb()
   const devices = await db.query.devices.findMany({ columns: { zone: true } })
-  const availableZones = Array.from(new Set(devices.map(device => device.zone))).toSorted()
+  const availableZones = normalizeZoneIds(devices.map(device => device.zone))
 
   await serverTrpc.subscriptions.get.prefetch()
 

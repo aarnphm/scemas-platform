@@ -8,6 +8,7 @@ use scemas_core::error::Result;
 use scemas_core::models::{
     Comparison, IndividualSensorReading, MetricType, RuleStatus, ThresholdRule,
 };
+use scemas_core::regions;
 use serde::Deserialize;
 use std::time::Instant;
 use tower_http::cors::CorsLayer;
@@ -38,6 +39,7 @@ pub fn create_router(state: AppState) -> Router {
             "/internal/alerting/alerts/{alert_id}/resolve",
             post(resolve_alert),
         )
+        .route("/internal/auth/reset-password", post(reset_password))
         // internal API (called by tRPC, not by browser)
         .route("/internal/telemetry/ingest", post(ingest_telemetry))
         .route("/internal/health", get(health))
@@ -60,6 +62,17 @@ async fn login(
 ) -> Result<Json<AuthSessionResponse>> {
     let session = state.access.login(request).await?;
     Ok(Json(session))
+}
+
+async fn reset_password(
+    State(state): State<AppState>,
+    Json(request): Json<ResetPasswordRequest>,
+) -> Result<Json<serde_json::Value>> {
+    state
+        .access
+        .reset_password(request.user_id, &request.new_password)
+        .await?;
+    Ok(Json(serde_json::json!({ "success": true })))
 }
 
 async fn create_rule(
@@ -135,10 +148,12 @@ async fn resolve_alert(
 async fn ingest_telemetry(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(reading): Json<IndividualSensorReading>,
+    Json(mut reading): Json<IndividualSensorReading>,
 ) -> Result<Json<serde_json::Value>> {
     let request_started_at = Instant::now();
     state.health.record_received();
+
+    reading.zone = regions::normalize_zone_id(&reading.zone, Some(&reading.sensor_id));
 
     let device_id = required_header(&headers, "x-scemas-device-id")?;
     let device_token = required_header(&headers, "x-scemas-device-token")?;
@@ -245,6 +260,13 @@ struct DeleteRuleRequest {
 #[serde(rename_all = "camelCase")]
 struct AlertActorRequest {
     user_id: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ResetPasswordRequest {
+    user_id: Uuid,
+    new_password: String,
 }
 
 fn required_header(headers: &HeaderMap, name: &'static str) -> Result<String> {

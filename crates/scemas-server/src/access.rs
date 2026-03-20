@@ -259,6 +259,23 @@ impl AccessManager {
         })
     }
 
+    pub async fn reset_password(&self, user_id: Uuid, new_password: &str) -> Result<()> {
+        let password_hash = hash_password(new_password)?;
+        let rows =
+            sqlx::query("UPDATE accounts SET password_hash = $1, updated_at = NOW() WHERE id = $2")
+                .bind(&password_hash)
+                .bind(user_id)
+                .execute(&self.db)
+                .await?
+                .rows_affected();
+
+        if rows == 0 {
+            return Err(Error::NotFound("account not found".into()));
+        }
+
+        Ok(())
+    }
+
     async fn insert_audit_log(
         &self,
         user_id: Option<Uuid>,

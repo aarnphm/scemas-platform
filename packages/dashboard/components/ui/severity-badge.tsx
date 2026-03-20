@@ -12,7 +12,7 @@ export function SeverityBadge({ severity }: SeverityBadgeProps) {
   const { label, color } = config[severity] ?? config[1]
   return (
     <span
-      className="inline-block rounded-full px-2 py-0.5 text-xs font-medium text-white"
+      className="inline-flex items-center rounded px-1.5 py-px text-[10px]/4 font-medium text-white"
       style={{ backgroundColor: color }}
     >
       {label}

@@ -5,10 +5,10 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 RUN cargo build --release -p scemas-server
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/scemas-server /usr/local/bin/
 COPY data/ /app/data/
 WORKDIR /app
-ENV DEVICE_CATALOG_PATH=data/hamilton-sensors.json
+ENV DEVICE_CATALOG_PATH=data/hamilton-sensor-catalog.json
 CMD ["scemas-server"]

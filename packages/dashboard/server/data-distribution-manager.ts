@@ -1,5 +1,8 @@
 import type { Database } from '@scemas/db'
 import type { MetricType, ZoneAQI } from '@scemas/types'
+import { sensorReadings } from '@scemas/db/schema'
+import { desc, inArray, or } from 'drizzle-orm'
+import { expandZoneIds, expandZoneSensorIds, isKnownZoneId, normalizeZoneId } from '@/lib/zones'
 
 const pm25Breakpoints = [
   { concentrationLow: 0.0, concentrationHigh: 12.0, aqiLow: 0, aqiHigh: 50 },
@@ -48,15 +51,26 @@ export class DataDistributionManager {
 
   async getRecentZoneReadings(zone: string, limit = 120): Promise<LatestSensorReading[]> {
     const safeLimit = Math.max(1, Math.min(limit, 500))
+    const zoneIds = expandZoneIds(zone)
+    const sensorIds = expandZoneSensorIds(zone)
+    const zoneCondition =
+      sensorIds.length > 0
+        ? or(inArray(sensorReadings.zone, zoneIds), inArray(sensorReadings.sensorId, sensorIds))
+        : inArray(sensorReadings.zone, zoneIds)
 
-    const rows = await this.db.$client`
-      select sensor_id as "sensorId", metric_type as "metricType", value, zone, time
-      from sensor_readings
-      where zone = ${zone}
-      order by time desc
-      limit ${safeLimit}
-    `
-    return rows.map(coerceReadingRow)
+    const rows = await this.db.query.sensorReadings.findMany({
+      where: zoneCondition,
+      orderBy: [desc(sensorReadings.time)],
+      limit: safeLimit,
+    })
+
+    return rows.map(row => ({
+      sensorId: row.sensorId,
+      metricType: row.metricType as MetricType,
+      value: row.value,
+      zone: normalizeZoneId(row.zone, row.sensorId),
+      time: row.time,
+    }))
   }
 
   async getPublicZoneAqi(): Promise<ZoneAQI[]> {
@@ -77,19 +91,28 @@ export class DataDistributionManager {
       order by zone, metric_type, time desc
     `
 
-    const zones = new Map<string, ZoneAQI>(
-      deviceRows.map(row => [
-        row.zone,
-        { zone: row.zone, aqi: 0, label: 'awaiting telemetry' } satisfies ZoneAQI,
-      ]),
-    )
+    const zones = new Map<string, ZoneAQI>()
 
-    for (const row of rows) {
-      if (!zones.has(row.zone)) {
-        zones.set(row.zone, { zone: row.zone, aqi: 0, label: 'good' })
+    for (const row of deviceRows) {
+      const zoneId = normalizeZoneId(row.zone)
+      if (!isKnownZoneId(zoneId)) {
+        continue
       }
 
-      const zone = zones.get(row.zone)
+      zones.set(zoneId, { zone: zoneId, aqi: 0, label: 'awaiting telemetry' } satisfies ZoneAQI)
+    }
+
+    for (const row of rows) {
+      const zoneId = normalizeZoneId(row.zone)
+      if (!isKnownZoneId(zoneId)) {
+        continue
+      }
+
+      if (!zones.has(zoneId)) {
+        zones.set(zoneId, { zone: zoneId, aqi: 0, label: 'good' })
+      }
+
+      const zone = zones.get(zoneId)
       if (!zone) {
         continue
       }
@@ -121,7 +144,7 @@ function coerceReadingRow(row: Record<string, unknown>): LatestSensorReading {
     sensorId: String(row.sensorId),
     metricType: String(row.metricType) as MetricType,
     value: Number(row.value),
-    zone: String(row.zone),
+    zone: normalizeZoneId(String(row.zone), String(row.sensorId)),
     time: row.time instanceof Date ? row.time : new Date(String(row.time)),
   }
 }

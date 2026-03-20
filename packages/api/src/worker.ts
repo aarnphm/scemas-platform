@@ -40,7 +40,7 @@ function buildContainerEnv(env: Env): Record<string, string> {
     DATABASE_URL: env.DATABASE_URL,
     JWT_SECRET: env.JWT_SECRET,
     DEVICE_AUTH_SECRET: env.DEVICE_AUTH_SECRET,
-    DEVICE_CATALOG_PATH: 'data/hamilton-sensors.json',
+    DEVICE_CATALOG_PATH: 'data/hamilton-sensor-catalog.json',
     RUST_LOG: 'info',
     RUST_PORT: '3001',
   }

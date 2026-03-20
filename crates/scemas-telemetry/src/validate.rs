@@ -66,7 +66,7 @@ mod tests {
             sensor_id: "temp-dt-001".into(),
             metric_type: MetricType::Temperature,
             value: 22.5,
-            zone: "downtown".into(),
+            zone: "downtown_core".into(),
             timestamp: Utc::now(),
         }
     }

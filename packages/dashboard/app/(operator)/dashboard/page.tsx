@@ -1,5 +1,5 @@
 // CityOperatorAgent main dashboard view
-// shows: metric KPIs, zone metrics chart, sensor feed, alert frequency, active alerts
+// shows: metric KPIs, region metrics chart, sensor feed, alert frequency, active alerts
 // this is the primary Presentation component for the operator agent
 
 import { alerts } from '@scemas/db/schema'
@@ -8,17 +8,10 @@ import { Suspense } from 'react'
 import { ZoneMap, type SensorPin } from '@/components/map/zone-map'
 import { SeverityBadge } from '@/components/ui/severity-badge'
 import { Spinner } from '@/components/ui/spinner'
+import { sensorCatalog, type SensorCatalogEntry } from '@/lib/sensor-catalog'
+import { formatZoneName, normalizeZoneId } from '@/lib/zones'
 import { getDb, getManager } from '@/server/cached'
-import sensorCatalog from '../../../../../data/hamilton-sensors.json'
 import { DashboardChartsPanel, AlertFrequencyPanel } from './dashboard-charts'
-
-type SensorPosition = {
-  sensor_id: string
-  device_type: string
-  zone: string
-  lat: number
-  lng: number
-}
 
 export default function OperatorDashboard() {
   return (
@@ -26,8 +19,8 @@ export default function OperatorDashboard() {
       <div>
         <h1 className="text-xl font-semibold text-balance">operator dashboard</h1>
         <p className="text-sm text-muted-foreground text-pretty">
-          real-time telemetry, sensor coverage, and active alert monitoring across all hamilton
-          zones
+          real-time telemetry, sensor coverage, and active alert monitoring across mapped hamilton
+          monitoring regions
         </p>
       </div>
 
@@ -37,7 +30,7 @@ export default function OperatorDashboard() {
         </Suspense>
       </div>
 
-      <Suspense fallback={<ChartSkeleton label="loading zone metrics" />}>
+      <Suspense fallback={<ChartSkeleton label="loading region metrics" />}>
         <DashboardChartsPanelWrapper />
       </Suspense>
 
@@ -71,13 +64,14 @@ async function ZoneMapWrapper() {
   const manager = getManager()
   const db = getDb()
 
-  const positions = sensorCatalog as SensorPosition[]
+  const positions: SensorCatalogEntry[] = sensorCatalog
   const latestReadings = await manager.getLatestSensorReadings(100)
   const activeAlerts = await db.query.alerts.findMany({ where: eq(alerts.status, 'active') })
 
   const alertCountsByZone: Record<string, number> = {}
   for (const alert of activeAlerts) {
-    alertCountsByZone[alert.zone] = (alertCountsByZone[alert.zone] ?? 0) + 1
+    const zoneId = normalizeZoneId(alert.zone, alert.sensorId)
+    alertCountsByZone[zoneId] = (alertCountsByZone[zoneId] ?? 0) + 1
   }
 
   const readingsMap = new Map(latestReadings.map(r => [r.sensorId, r]))
@@ -85,6 +79,16 @@ async function ZoneMapWrapper() {
     const reading = readingsMap.get(pos.sensor_id)
     return {
       sensorId: pos.sensor_id,
+      assetId: pos.asset_id,
+      stationId: pos.station_id,
+      displayName: pos.display_name,
+      siteName: pos.site_name,
+      placement: pos.placement,
+      provider: pos.provider,
+      telemetryUnit: pos.telemetry_unit,
+      samplingIntervalSeconds: pos.sampling_interval_seconds,
+      wardIds: pos.tracking.ward_ids,
+      planningUnitIds: pos.tracking.planning_unit_ids,
       zone: pos.zone,
       lat: pos.lat,
       lng: pos.lng,
@@ -95,7 +99,12 @@ async function ZoneMapWrapper() {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-sm font-medium">sensor map</h2>
+      <div className="space-y-1">
+        <h2 className="text-sm font-medium">sensor map by monitoring region</h2>
+        <p className="text-xs text-muted-foreground">
+          polygon boundaries are grouped from hamilton&apos;s official planning-unit layer
+        </p>
+      </div>
       <ZoneMap sensors={sensors} alertCounts={alertCountsByZone} />
     </div>
   )
@@ -104,14 +113,14 @@ async function ZoneMapWrapper() {
 async function SensorCoveragePanel() {
   const manager = getManager()
   const latestReadings = await manager.getLatestSensorReadings(100)
-  const coveredZones = new Set(latestReadings.map(reading => reading.zone)).size
+  const coveredRegions = new Set(latestReadings.map(reading => reading.zone)).size
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <h2 className="text-sm font-medium">live sensor feed</h2>
       <p className="mt-1 text-xs text-muted-foreground">
         <span className="font-mono tabular-nums">{latestReadings.length}</span> streams across{' '}
-        <span className="font-mono tabular-nums">{coveredZones}</span> zones
+        <span className="font-mono tabular-nums">{coveredRegions}</span> regions
       </p>
       <div className="mt-4 max-h-80 space-y-1.5 overflow-y-auto text-sm text-muted-foreground">
         {latestReadings.slice(0, 12).map(reading => (
@@ -173,7 +182,9 @@ async function ActiveAlertsPanel() {
             >
               <span className="flex items-center gap-2">
                 <SeverityBadge severity={alert.severity} />
-                <span className="truncate font-medium">{alert.zone}</span>
+                <span className="truncate font-medium">
+                  {formatZoneName(alert.zone, 'lower', alert.sensorId)}
+                </span>
               </span>
               <span className="shrink-0 text-xs text-muted-foreground">
                 {alert.metricType.replaceAll('_', ' ')} at{' '}

@@ -3,7 +3,6 @@
 import { accounts, auditLogs } from '@scemas/db/schema'
 import { CreateAccountSchema, RoleSchema, UpdateAccountDetailsSchema } from '@scemas/types'
 import { TRPCError } from '@trpc/server'
-import { hash } from 'argon2'
 import { eq, desc } from 'drizzle-orm'
 import { z } from 'zod'
 import { callRustEndpoint, extractRustErrorMessage } from '../rust-client'
@@ -130,12 +129,17 @@ export const usersRouter = router({
   resetPassword: adminProcedure
     .input(z.object({ userId: z.string().uuid(), newPassword: z.string().min(8) }))
     .mutation(async ({ input, ctx }) => {
-      const passwordHash = await hash(input.newPassword)
+      const { status, data } = await callRustEndpoint('/internal/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ userId: input.userId, newPassword: input.newPassword }),
+      })
 
-      await ctx.db
-        .update(accounts)
-        .set({ passwordHash, updatedAt: new Date() })
-        .where(eq(accounts.id, input.userId))
+      if (status >= 400) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: extractRustErrorMessage(data) ?? 'failed to reset password',
+        })
+      }
 
       await ctx.db
         .insert(auditLogs)

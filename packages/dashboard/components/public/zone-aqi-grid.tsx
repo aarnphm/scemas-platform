@@ -3,6 +3,7 @@
 import { ZoneAQISchema, type ZoneAQI } from '@scemas/types'
 import { useQuery } from '@tanstack/react-query'
 import { Spinner } from '@/components/ui/spinner'
+import { formatZoneName } from '@/lib/zones'
 import { ZoneAqiBarChart } from './zone-aqi-bar-chart'
 
 export function ZoneAqiGrid() {
@@ -49,7 +50,9 @@ export function ZoneAqiGrid() {
             className="flex min-h-[180px] flex-col justify-between rounded-xl border border-border/50 bg-card p-6"
             key={zone.zone}
           >
-            <p className="text-sm text-muted-foreground text-pretty">{formatZoneName(zone.zone)}</p>
+            <p className="text-sm text-muted-foreground text-pretty">
+              {formatZoneName(zone.zone, 'title')}
+            </p>
             <div className="py-3 text-center">
               <p
                 className="font-mono text-6xl font-bold tabular-nums"
@@ -98,15 +101,6 @@ function formatMetric(value: number | undefined, label: string): string {
   }
 
   return `${label}: ${value}`
-}
-
-const zoneNameOverrides: Record<string, string> = { mcmaster: 'McMaster' }
-
-function formatZoneName(zone: string): string {
-  if (zoneNameOverrides[zone]) {
-    return zoneNameOverrides[zone]
-  }
-  return zone.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function aqiColor(aqi: number): string {

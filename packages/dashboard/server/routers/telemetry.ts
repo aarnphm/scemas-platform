@@ -2,10 +2,11 @@
 // ingest: proxies to rust internal API (pipe-and-filter pattern)
 // reads: direct drizzle queries (no pattern needed for reads)
 
-import { sensorReadings } from '@scemas/db/schema'
+import { analytics, sensorReadings } from '@scemas/db/schema'
 import { SensorReadingSchema } from '@scemas/types'
-import { desc, eq, and } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, or } from 'drizzle-orm'
 import { z } from 'zod'
+import { expandZoneIds, expandZoneSensorIds } from '@/lib/zones'
 import { createDataDistributionManager } from '../data-distribution-manager'
 import { buildDeviceAuthToken } from '../env'
 import { callRustEndpoint } from '../rust-client'
@@ -40,13 +41,17 @@ export const telemetryRouter = router({
       }),
     )
     .query(async ({ input, ctx }) => {
+      const zoneIds = expandZoneIds(input.zone)
+      const sensorIds = expandZoneSensorIds(input.zone)
+      const zoneCondition =
+        sensorIds.length > 0
+          ? or(inArray(sensorReadings.zone, zoneIds), inArray(sensorReadings.sensorId, sensorIds))
+          : inArray(sensorReadings.zone, zoneIds)
+
       return ctx.db.query.sensorReadings.findMany({
         where: input.metricType
-          ? and(
-              eq(sensorReadings.zone, input.zone),
-              eq(sensorReadings.metricType, input.metricType),
-            )
-          : eq(sensorReadings.zone, input.zone),
+          ? and(zoneCondition, eq(sensorReadings.metricType, input.metricType))
+          : zoneCondition,
         orderBy: [desc(sensorReadings.time)],
         limit: input.limit,
       })
@@ -62,27 +67,45 @@ export const telemetryRouter = router({
   getTimeSeries: protectedProcedure
     .input(z.object({ zone: z.string(), hours: z.number().min(1).max(168).default(6) }))
     .query(async ({ input, ctx }) => {
-      const rows = await ctx.db.$client`
-        SELECT
-          time,
-          MAX(CASE WHEN metric_type = 'temperature' THEN aggregated_value END) as temperature,
-          MAX(CASE WHEN metric_type = 'humidity' THEN aggregated_value END) as humidity,
-          MAX(CASE WHEN metric_type = 'air_quality' THEN aggregated_value END) as "airQuality",
-          MAX(CASE WHEN metric_type = 'noise_level' THEN aggregated_value END) as "noiseLevel"
-        FROM analytics
-        WHERE zone = ${input.zone}
-          AND aggregation_type = '5m_avg'
-          AND time > NOW() - make_interval(hours => ${input.hours})
-        GROUP BY time
-        ORDER BY time ASC
-      `
-      return rows.map(row => ({
-        time: row.time instanceof Date ? row.time.toISOString() : String(row.time),
-        temperature: row.temperature != null ? Number(row.temperature) : null,
-        humidity: row.humidity != null ? Number(row.humidity) : null,
-        airQuality: row.airQuality != null ? Number(row.airQuality) : null,
-        noiseLevel: row.noiseLevel != null ? Number(row.noiseLevel) : null,
-      }))
+      const rows = await ctx.db.query.analytics.findMany({
+        where: and(
+          inArray(analytics.zone, expandZoneIds(input.zone)),
+          eq(analytics.aggregationType, '5m_avg'),
+          gte(analytics.time, new Date(Date.now() - input.hours * 60 * 60 * 1000)),
+        ),
+        orderBy: [asc(analytics.time)],
+      })
+
+      const points = new Map<
+        string,
+        {
+          time: string
+          temperature: number | null
+          humidity: number | null
+          airQuality: number | null
+          noiseLevel: number | null
+        }
+      >()
+
+      for (const row of rows) {
+        const pointTime = row.time.toISOString()
+        const point = points.get(pointTime) ?? {
+          time: pointTime,
+          temperature: null,
+          humidity: null,
+          airQuality: null,
+          noiseLevel: null,
+        }
+
+        if (row.metricType === 'temperature') point.temperature = row.aggregatedValue
+        if (row.metricType === 'humidity') point.humidity = row.aggregatedValue
+        if (row.metricType === 'air_quality') point.airQuality = row.aggregatedValue
+        if (row.metricType === 'noise_level') point.noiseLevel = row.aggregatedValue
+
+        points.set(pointTime, point)
+      }
+
+      return Array.from(points.values())
     }),
 })
 

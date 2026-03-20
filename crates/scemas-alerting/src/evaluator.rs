@@ -8,6 +8,7 @@
 use scemas_core::models::{
     Alert, AlertStatus, Comparison, IndividualSensorReading, Severity, ThresholdRule,
 };
+use scemas_core::regions;
 use uuid::Uuid;
 
 /// evaluate a reading against all active rules
@@ -29,7 +30,7 @@ fn matches_reading(rule: &ThresholdRule, reading: &IndividualSensorReading) -> b
         return false;
     }
     if let Some(ref zone) = rule.zone
-        && zone != &reading.zone
+        && !regions::zone_filter_matches(zone, &reading.zone, Some(&reading.sensor_id))
     {
         return false;
     }
@@ -84,7 +85,7 @@ mod tests {
             metric_type: MetricType::Temperature,
             threshold_value: 35.0,
             comparison: Comparison::Gt,
-            zone: Some("downtown".into()),
+            zone: Some("downtown_core".into()),
             rule_status: RuleStatus::Active,
         }
     }
@@ -94,7 +95,7 @@ mod tests {
             sensor_id: "temp-dt-001".into(),
             metric_type: MetricType::Temperature,
             value,
-            zone: "downtown".into(),
+            zone: "downtown_core".into(),
             timestamp: Utc::now(),
         }
     }
@@ -119,8 +120,19 @@ mod tests {
     fn evaluate_ignores_wrong_zone() {
         let rules = vec![sample_rule()];
         let mut reading = sample_reading(40.0);
+        reading.sensor_id = "temp-wm-001".into();
         reading.zone = "west_mountain".into();
         let alerts = evaluate(&reading, &rules);
         assert!(alerts.is_empty());
+    }
+
+    #[test]
+    fn evaluate_matches_shared_ward_rule_when_sensor_resolves_to_canonical_region() {
+        let mut rule = sample_rule();
+        rule.zone = Some("ward_2".into());
+
+        let reading = sample_reading(40.0);
+        let alerts = evaluate(&reading, [&rule]);
+        assert_eq!(alerts.len(), 1);
     }
 }

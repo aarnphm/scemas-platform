@@ -4,7 +4,9 @@ import { keepPreviousData } from '@tanstack/react-query'
 import { useState } from 'react'
 import { AlertFrequencyChart } from '@/components/charts/alert-frequency-chart'
 import { ZoneMetricsChart } from '@/components/charts/zone-metrics-chart'
+import { Spinner } from '@/components/ui/spinner'
 import { trpc } from '@/lib/trpc'
+import { formatZoneName } from '@/lib/zones'
 
 export function DashboardChartsPanel({ availableZones }: { availableZones: string[] }) {
   const [selectedZone, setSelectedZone] = useState(availableZones[0] ?? '')
@@ -20,23 +22,23 @@ export function DashboardChartsPanel({ availableZones }: { availableZones: strin
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-sm font-medium">zone metrics (last 6h)</h2>
-        <select
-          className="h-7 rounded-md border border-input bg-background px-2 text-xs"
-          onChange={e => setSelectedZone(e.target.value)}
-          value={selectedZone}
-        >
-          {availableZones.map(zone => (
-            <option key={zone} value={zone}>
-              {zone.replaceAll('_', ' ')}
-            </option>
-          ))}
-        </select>
+        <h2 className="text-sm font-medium">region metrics (last 6h)</h2>
+        <div className="flex items-center gap-2">
+          {timeSeriesQuery.isFetching ? <Spinner /> : null}
+          <select
+            className="h-7 rounded-md border border-input bg-background px-2 text-xs"
+            onChange={e => setSelectedZone(e.target.value)}
+            value={selectedZone}
+          >
+            {availableZones.map(zone => (
+              <option key={zone} value={zone}>
+                {formatZoneName(zone)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
-      <div className="relative mt-4">
-        {timeSeriesQuery.isFetching && (
-          <div className="absolute right-0 top-0 text-xs text-muted-foreground">refreshing...</div>
-        )}
+      <div className="mt-4">
         {timeSeriesQuery.isError ? (
           <p className="h-72 text-sm text-destructive">{timeSeriesQuery.error.message}</p>
         ) : (

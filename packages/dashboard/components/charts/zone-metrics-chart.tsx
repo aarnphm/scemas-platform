@@ -25,6 +25,13 @@ const chartConfig = {
   noiseLevel: { label: 'noise (db)', color: 'oklch(0.553 0.195 38.402)' },
 } satisfies ChartConfig
 
+const tooltipLabels: Record<string, string> = {
+  temperature: 'temperature',
+  humidity: 'humidity',
+  airQuality: 'air quality',
+  noiseLevel: 'noise',
+}
+
 function formatTime(isoString: string) {
   const date = new Date(isoString)
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
@@ -47,7 +54,29 @@ export function ZoneMetricsChart({ data }: { data: TimeSeriesPoint[] }) {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="time" tickFormatter={formatTime} tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} width={40} />
-        <ChartTooltip content={<ChartTooltipContent labelFormatter={formatTime} />} />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={formatTime}
+              formatter={(value, name, item) => (
+                <>
+                  <div
+                    className="size-2.5 shrink-0 rounded-[2px]"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <div className="flex flex-1 items-center justify-between gap-4 leading-none">
+                    <span className="text-muted-foreground">
+                      {tooltipLabels[name as string] ?? name}
+                    </span>
+                    <span className="font-mono font-medium text-foreground tabular-nums">
+                      {typeof value === 'number' ? value.toLocaleString() : value}
+                    </span>
+                  </div>
+                </>
+              )}
+            />
+          }
+        />
         <ChartLegend content={<ChartLegendContent />} />
         <Line
           connectNulls

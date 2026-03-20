@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { RuleActions } from '@/components/admin/rule-actions'
 import { HydrateClient } from '@/lib/trpc-server'
+import { formatZoneName } from '@/lib/zones'
 import { getDb } from '@/server/cached'
 
 export default async function RuleDetailPage({ params }: { params: Promise<{ ruleId: string }> }) {
@@ -30,7 +31,7 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ rul
           <h1 className="text-xl font-semibold text-balance">rule detail</h1>
           <p className="text-sm text-muted-foreground text-pretty">
             {rule.metricType.replaceAll('_', ' ')} {rule.comparison} {rule.thresholdValue}, scope:{' '}
-            {rule.zone ?? 'all zones'}
+            {rule.zone ? formatZoneName(rule.zone) : 'all regions'}
           </p>
         </div>
         <HydrateClient>
@@ -53,7 +54,7 @@ export default async function RuleDetailPage({ params }: { params: Promise<{ rul
           </div>
           <div>
             <dt className="text-muted-foreground">scope</dt>
-            <dd>{rule.zone ?? 'all zones'}</dd>
+            <dd>{rule.zone ? formatZoneName(rule.zone) : 'all regions'}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">status</dt>

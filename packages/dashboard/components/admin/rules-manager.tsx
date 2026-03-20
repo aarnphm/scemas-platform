@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { trpc } from '@/lib/trpc'
+import { formatZoneName } from '@/lib/zones'
 
 const metricTypes = ['temperature', 'humidity', 'air_quality', 'noise_level'] as const
 const comparisons = ['gt', 'gte', 'lt', 'lte'] as const
@@ -159,7 +160,7 @@ export function RulesManager() {
           step="0.1"
           type="number"
         />
-        <Input name="zone" placeholder="optional zone override" />
+        <Input name="zone" placeholder="optional region override" />
         <Button disabled={createRule.isPending} type="submit">
           {createRule.isPending ? <Spinner /> : 'create rule'}
         </Button>
@@ -197,7 +198,8 @@ export function RulesManager() {
                       <span className="font-mono tabular-nums">{rule.thresholdValue}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      scope: {rule.zone ?? 'all zones'} | status: {rule.ruleStatus}
+                      scope: {rule.zone ? formatZoneName(rule.zone) : 'all regions'} | status:{' '}
+                      {rule.ruleStatus}
                     </p>
                   </div>
 

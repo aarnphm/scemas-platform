@@ -1,6 +1,7 @@
 import type { MetricType } from '@scemas/types'
 import Link from 'next/link'
 import type { LatestSensorReading } from '@/server/data-distribution-manager'
+import { formatZoneName } from '@/lib/zones'
 
 type MetricPanelData = {
   metricType: MetricType
@@ -90,10 +91,10 @@ export function MetricSubagentPanels({
                         className="font-medium underline-offset-4 hover:underline"
                         href={`/metrics/${zone.zone}`}
                       >
-                        {zone.zone.replaceAll('_', ' ')}
+                        {formatZoneName(zone.zone)}
                       </Link>
                     ) : (
-                      <p className="font-medium">{zone.zone.replaceAll('_', ' ')}</p>
+                      <p className="font-medium">{formatZoneName(zone.zone)}</p>
                     )}
                     <p className="text-xs text-muted-foreground">
                       {zone.sensorCount} active sensors

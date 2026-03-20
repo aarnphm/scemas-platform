@@ -1,18 +1,19 @@
 // AlertingManager read operations (HandleActiveAlerts boundary)
 // writes (acknowledge, resolve) also here since they're simple state transitions
 
-import { alerts } from '@scemas/db/schema'
+import { alerts, alertSubscriptions } from '@scemas/db/schema'
 import { AlertStatusSchema } from '@scemas/types'
 import { TRPCError } from '@trpc/server'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc, and, ne, inArray, gte, or } from 'drizzle-orm'
 import { z } from 'zod'
+import { expandZoneIdSet, expandZoneSensorIdSet, normalizeZoneId } from '@/lib/zones'
 import { callRustEndpoint, extractRustErrorMessage } from '../rust-client'
 import { router, protectedProcedure } from '../trpc'
 
 const SuccessResponseSchema = z.object({ success: z.literal(true) })
 
 export const alertsRouter = router({
-  // list alerts with optional status filter
+  // list alerts filtered by the operator's subscription preferences
   list: protectedProcedure
     .input(
       z.object({
@@ -22,22 +23,59 @@ export const alertsRouter = router({
       }),
     )
     .query(async ({ input, ctx }) => {
-      const conditions = []
+      const conditions = [ne(alerts.status, 'resolved')]
       if (input.status) conditions.push(eq(alerts.status, input.status))
-      if (input.zone) conditions.push(eq(alerts.zone, input.zone))
+      if (input.zone) conditions.push(buildAlertZoneCondition([input.zone]))
 
-      return ctx.db.query.alerts.findMany({
-        where: conditions.length > 0 ? and(...conditions) : undefined,
+      const subscription = await ctx.db.query.alertSubscriptions.findFirst({
+        where: eq(alertSubscriptions.userId, ctx.user.id),
+      })
+
+      if (subscription) {
+        if (subscription.metricTypes && subscription.metricTypes.length > 0) {
+          conditions.push(inArray(alerts.metricType, subscription.metricTypes))
+        }
+        if (subscription.zones && subscription.zones.length > 0) {
+          conditions.push(buildAlertZoneCondition(subscription.zones))
+        }
+        if (subscription.minSeverity && subscription.minSeverity > 1) {
+          conditions.push(gte(alerts.severity, subscription.minSeverity))
+        }
+      }
+
+      const alertRows = await ctx.db.query.alerts.findMany({
+        where: and(...conditions),
         orderBy: [desc(alerts.createdAt)],
         limit: input.limit,
       })
+
+      return alertRows.map(alert => ({
+        ...alert,
+        zone: normalizeZoneId(alert.zone, alert.sensorId),
+      }))
+    }),
+
+  // list all alerts including resolved (for history view)
+  history: protectedProcedure
+    .input(z.object({ limit: z.number().default(50) }))
+    .query(async ({ ctx, input }) => {
+      const alertRows = await ctx.db.query.alerts.findMany({
+        orderBy: [desc(alerts.createdAt)],
+        limit: input.limit,
+      })
+
+      return alertRows.map(alert => ({
+        ...alert,
+        zone: normalizeZoneId(alert.zone, alert.sensorId),
+      }))
     }),
 
   // get single alert by id
   get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
-      return ctx.db.query.alerts.findFirst({ where: eq(alerts.id, input.id) })
+      const alert = await ctx.db.query.alerts.findFirst({ where: eq(alerts.id, input.id) })
+      return alert ? { ...alert, zone: normalizeZoneId(alert.zone, alert.sensorId) } : null
     }),
 
   // alert frequency: count by hour grouped by severity (for charts)
@@ -117,3 +155,15 @@ export const alertsRouter = router({
       return parsed.data
     }),
 })
+
+function buildAlertZoneCondition(zonesToMatch: string[]) {
+  const expandedZones = expandZoneIdSet(zonesToMatch)
+  const sensorIds = expandZoneSensorIdSet(zonesToMatch)
+  const zoneCondition = inArray(alerts.zone, expandedZones)
+
+  if (sensorIds.length === 0) {
+    return zoneCondition
+  }
+
+  return or(zoneCondition, inArray(alerts.sensorId, sensorIds)) ?? zoneCondition
+}
