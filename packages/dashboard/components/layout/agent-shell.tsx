@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { cookies } from 'next/headers'
+import { Button } from '@/components/ui/button'
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +14,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
+import { SESSION_COOKIE_NAME } from '@/lib/session'
 import { NavLinks } from './nav-links'
 import { SignOutForm } from './sign-out-form'
 
@@ -20,7 +23,7 @@ type AgentNavItem = { href: string; label: string }
 type AgentShellProps = {
   title: string
   subtitle: string
-  navItems: AgentNavItem[]
+  navItems?: AgentNavItem[]
   navExtra?: ReactNode
   children: ReactNode
 }
@@ -28,12 +31,13 @@ type AgentShellProps = {
 export async function AgentShell({
   title,
   subtitle,
-  navItems,
+  navItems = [],
   navExtra,
   children,
 }: AgentShellProps) {
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get('sidebar_state')?.value !== 'false'
+  const hasSession = cookieStore.has(SESSION_COOKIE_NAME)
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
@@ -44,11 +48,13 @@ export async function AgentShell({
         </SidebarHeader>
 
         <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <NavLinks items={navItems} />
-            </SidebarGroupContent>
-          </SidebarGroup>
+          {navItems.length > 0 ? (
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <NavLinks items={navItems} />
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ) : null}
           {navExtra ? (
             <SidebarGroup>
               <SidebarGroupContent className="px-2">{navExtra}</SidebarGroupContent>
@@ -57,7 +63,13 @@ export async function AgentShell({
         </SidebarContent>
 
         <SidebarFooter>
-          <SignOutForm className="w-full justify-center" label="sign out" variant="outline" />
+          {hasSession ? (
+            <SignOutForm className="w-full justify-center" label="sign out" variant="outline" />
+          ) : (
+            <Button asChild className="w-full justify-center" variant="outline">
+              <Link href="/sign-in">sign in</Link>
+            </Button>
+          )}
         </SidebarFooter>
 
         <SidebarRail />

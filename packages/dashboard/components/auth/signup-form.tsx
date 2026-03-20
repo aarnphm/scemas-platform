@@ -47,67 +47,65 @@ export function SignupForm() {
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
-      <fieldset className={disabled ? 'opacity-50' : undefined} disabled={disabled}>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="username">
-              username
-            </label>
-            <Input
-              autoComplete="username"
-              id="username"
-              name="username"
-              placeholder="city-operator"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="email">
-              email
-            </label>
-            <Input
-              autoComplete="email"
-              id="email"
-              name="email"
-              placeholder="operator@scemas.local"
-              required
-              type="email"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="password">
-              password
-            </label>
-            <Input
-              autoComplete="new-password"
-              id="password"
-              minLength={8}
-              name="password"
-              required
-              type="password"
-            />
-          </div>
-
-          {submissionError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {submissionError}
-            </p>
-          ) : null}
-
-          <Button className="w-full" disabled={signup.isPending || disabled} type="submit">
-            {signup.isPending ? (
-              <span className="inline-flex items-center gap-2">
-                <Spinner />
-                creating account
-              </span>
-            ) : (
-              'create account'
-            )}
-          </Button>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium" htmlFor="username">
+            username
+          </label>
+          <Input
+            autoComplete="username"
+            id="username"
+            name="username"
+            placeholder="city-operator"
+            required
+          />
         </div>
-      </fieldset>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium" htmlFor="email">
+            email
+          </label>
+          <Input
+            autoComplete="email"
+            id="email"
+            name="email"
+            placeholder="operator@scemas.local"
+            required
+            type="email"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium" htmlFor="password">
+            password
+          </label>
+          <Input
+            autoComplete="new-password"
+            id="password"
+            minLength={8}
+            name="password"
+            required
+            type="password"
+          />
+        </div>
+
+        {submissionError ? (
+          <p className="text-sm text-destructive" role="alert">
+            {submissionError}
+          </p>
+        ) : null}
+
+        <Button className="w-full" disabled={signup.isPending || disabled} type="submit">
+          {signup.isPending ? (
+            <span className="inline-flex items-center gap-2">
+              <Spinner />
+              creating account
+            </span>
+          ) : (
+            'create account'
+          )}
+        </Button>
+      </div>
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <p>
