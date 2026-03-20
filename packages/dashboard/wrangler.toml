@@ -7,7 +7,30 @@ compatibility_flags = ["nodejs_compat"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
-# uncomment when deploying with hyperdrive for postgres
-# [[hyperdrive]]
-# binding = "HYPERDRIVE"
-# id = "<your-hyperdrive-config-id>"
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "f86675adeaab4da8aba265aa2d3c0dae"
+localConnectionString = "postgres://scemas:scemas@localhost:5432/scemas"
+
+[[services]]
+binding = "SCEMAS_API"
+service = "scemas-api"
+
+[vars]
+INTERNAL_RUST_URL = "https://scemas-api.aarnphm.workers.dev"
+NEXT_PUBLIC_API_URL = "https://scemas-dashboard.aarnphm.workers.dev"
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1

@@ -48,6 +48,7 @@ scemas-platform/
 │   └── scemas-server/           axum internal API on :3001
 │
 ├── packages/                    bun workspace (typescript)
+│   ├── api/                     cloudflare worker + container wrapper for rust
 │   ├── db/                      drizzle schema (database source of truth)
 │   ├── types/                   zod schemas + shared types
 │   └── dashboard/               next.js 15 + tRPC (3 PAC agent dashboards)
@@ -63,13 +64,13 @@ scemas-platform/
 ### with nix (recommended)
 
 ```sh
-nix develop       # rust, bun, node, postgres, shell helpers, first-time setup
+nix develop       # rust, bun, postgres, shell helpers, first-time setup
 scemas-dev        # starts db + schema + default accounts + engine + dashboard
 ```
 
 ### without nix
 
-install rust (>= 1.85), bun (>= 1.0), node (>= 22), and docker manually.
+install rustup, bun (>= 1.2), and docker manually. the repo pins rust in `rust-toolchain.toml`, so `rustup` will pull the correct stable toolchain automatically.
 
 ```sh
 source scripts/start-scemas.sh   # shell helpers + first-time setup
@@ -199,3 +200,10 @@ these are server-to-server routes used by the next/tRPC layer and seed scripts, 
 | validation | zod (typescript), thiserror (rust) |
 | deployment | cloudflare workers via opennext |
 | runtime | bun (typescript), tokio (rust) |
+
+## rust toolchain
+
+- local dev and ci should use the pinned toolchain in `rust-toolchain.toml`
+- current pin: `1.93.0` with `rustfmt` and `clippy`
+- mac: install xcode command line tools, then `rustup`
+- windows: use the `*-pc-windows-msvc` toolchain with visual studio build tools

@@ -31,3 +31,8 @@ export function createDb(connectionString: string): Database {
 
   return db
 }
+
+export function createDbWorker(connectionString: string): Database {
+  const client = postgres(connectionString, { prepare: false, max: 1 })
+  return drizzle(client, { schema })
+}

@@ -1,0 +1,30 @@
+@startuml
+title Request and Interpret Environmental Data
+
+actor "Public User /\nThird-Party Developer" as Client
+participant "Functional Client\n(Digital Signage)" as FC
+participant "Provide\nPublic API" as API
+participant "Data Distribution\nManagement" as DDM
+database "Analytics\nDB" as DB
+
+Client -> FC : Open SCEMAS Display
+FC -> API : GET /api/v1/zones/aqi
+API -> API : Rate Limit Check
+
+group Rate Limit Passed
+    API -> DDM : Request Aggregated Data
+    DDM -> DB : Query Latest Aggregates
+    DB --> DDM : Aggregated Zone Metrics
+    DDM -> DDM : Compute AQI per Zone
+    DDM -> DDM : Strip Sensitive Fields\n(sensor IDs, device metadata)
+    DDM --> API : ZoneAQI[]
+    API --> FC : 200 OK + JSON Payload
+    FC --> Client : Display Zone AQI Cards
+end
+
+group Rate Limit Exceeded
+    API --> FC : 429 Too Many Requests
+    FC --> Client : Display Error Message
+end
+
+@enduml

@@ -1,5 +1,7 @@
 import { AgentShell } from '@/components/layout/agent-shell'
 
+export const dynamic = 'force-dynamic'
+
 export default function OperatorLayout({
   children,
 }: {

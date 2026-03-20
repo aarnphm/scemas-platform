@@ -1,0 +1,97 @@
+@startuml telemetry_management_controller
+hide empty description
+
+skinparam state {
+  BackgroundColor<<idle>> #F2F4F4
+  BorderColor<<idle>> #7F8C8D
+  FontColor<<idle>> #2C3E50
+
+  BackgroundColor<<ingest>> #D6EAF8
+  BorderColor<<ingest>> #2980B9
+  FontColor<<ingest>> #1A5276
+
+  BackgroundColor<<validate>> #EDE8F5
+  BorderColor<<validate>> #a692c3
+  FontColor<<validate>> #4A3767
+
+  BackgroundColor<<persist>> #D5F5E3
+  BorderColor<<persist>> #27AE60
+  FontColor<<persist>> #1E8449
+
+  BackgroundColor<<error>> #FDEBD0
+  BorderColor<<error>> #E67E22
+  FontColor<<error>> #7E5109
+
+  StartColor black
+  EndColor black
+}
+
+' ──────────────────────────────────
+' PIPE-AND-FILTER PIPELINE
+' ──────────────────────────────────
+
+state "Idle" as IDLE <<idle>>
+
+state "Ingesting" as ING <<ingest>> {
+  state "ReceiveSensorReading" as RSR <<ingest>>
+  state "AuthorizeDevice" as AD <<ingest>>
+  RSR --> AD : reading received
+}
+
+state "Validating" as VAL <<validate>> {
+  state "SchemaValidation" as SV <<validate>>
+  state "RangeValidation" as RV <<validate>>
+  state "TimestampValidation" as TV <<validate>>
+  SV --> RV : schema valid
+  RV --> TV : range valid
+}
+
+state "Persisting" as PER <<persist>> {
+  state "StoreSensorReading" as SSR <<persist>>
+  state "UpdateAggregations" as UA <<persist>>
+  SSR --> UA : reading persisted
+}
+
+state "RejectedReading" as REJ <<error>> {
+  state "LogRejection" as LR <<error>>
+  state "RecordIngestionFailure" as RIF <<error>>
+  LR --> RIF : rejection logged
+}
+
+' ──────────────────────────────────
+' TRANSITIONS
+' ──────────────────────────────────
+
+[*] --> IDLE : server startup
+
+IDLE --> ING : sensor reading arrives
+
+ING --> VAL : device authorized
+ING --> REJ : device unauthorized
+
+VAL --> PER : all filters passed
+SV --> REJ : schema invalid
+RV --> REJ : value out of range
+TV --> REJ : timestamp drift > 5min
+
+PER --> IDLE : pipeline complete
+UA --> IDLE : aggregation updated
+
+REJ --> IDLE : await next reading
+
+' ──────────────────────────────────
+' HEALTH MONITORING (parallel)
+' ──────────────────────────────────
+
+state "MonitorIngestionHealth" as MIH <<idle>> {
+  state "TrackCounters" as TC <<idle>>
+  note right of TC
+    Atomic counters:
+    received, accepted, rejected
+    Exposed via GET /internal/health
+  end note
+}
+
+IDLE -[dotted]-> MIH : continuously sampled
+
+@enduml

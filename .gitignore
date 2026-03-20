@@ -40,8 +40,3 @@ result
 # generated
 *.log
 *.tsbuildinfo
-CLAUDE.md
-AGENTS.md
-.claude/
-.agents/
-progress.md

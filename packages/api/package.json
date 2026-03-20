@@ -1,0 +1,13 @@
+{
+  "name": "@scemas/api",
+  "private": true,
+  "scripts": {
+    "cf:deploy": "wrangler deploy",
+    "cf:dev": "wrangler dev",
+    "cf:types": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/containers": "^0.1.1",
+    "wrangler": "^4.75.0"
+  }
+}

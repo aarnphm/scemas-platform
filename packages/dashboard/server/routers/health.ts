@@ -4,9 +4,7 @@ import { router, adminProcedure } from '../trpc'
 import { platformStatus } from '@scemas/db/schema'
 import { desc } from 'drizzle-orm'
 
-import { getInternalRustUrl } from '../env'
-
-const RUST_URL = getInternalRustUrl()
+import { callRustEndpoint } from '../rust-client'
 
 export const healthRouter = router({
   // platform status from database
@@ -31,11 +29,24 @@ export const healthRouter = router({
   ingestion: adminProcedure
     .query(async () => {
       try {
-        const res = await fetch(`${RUST_URL}/internal/health`)
-        if (!res.ok) return { status: 'error', message: 'rust engine unreachable' }
-        return { status: 'ok', ...(await res.json()) }
+        const { data, status } = await callRustEndpoint('/internal/health', {
+          method: 'GET',
+        })
+
+        if (status >= 400) {
+          return { status: 'error', message: 'rust engine unreachable' }
+        }
+
+        return {
+          status: 'ok',
+          ...(isRecord(data) ? data : {}),
+        }
       } catch {
         return { status: 'error', message: 'rust engine not running' }
       }
     }),
 })
+
+function isRecord(payload: unknown): payload is Record<string, unknown> {
+  return typeof payload === 'object' && payload !== null
+}

@@ -1,0 +1,32 @@
+name = "scemas-api"
+main = "src/worker.ts"
+compatibility_date = "2025-05-05"
+compatibility_flags = ["nodejs_compat"]
+
+[[containers]]
+class_name = "ScemaEngine"
+image = "../../Dockerfile"
+max_instances = 1
+
+[[durable_objects.bindings]]
+name = "ENGINE"
+class_name = "ScemaEngine"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ScemaEngine"]
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1

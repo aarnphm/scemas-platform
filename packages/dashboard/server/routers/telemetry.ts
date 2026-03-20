@@ -8,30 +8,29 @@ import { sensorReadings } from '@scemas/db/schema'
 import { desc, eq, and, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { buildDeviceAuthToken, getInternalRustUrl } from '../env'
+import { buildDeviceAuthToken } from '../env'
 import { createDataDistributionManager } from '../data-distribution-manager'
-
-const RUST_URL = getInternalRustUrl()
+import { callRustEndpoint } from '../rust-client'
 
 export const telemetryRouter = router({
   // IngestSensorStreams boundary: proxies to rust for pipe-and-filter demonstration
   ingest: protectedProcedure
     .input(SensorReadingSchema)
     .mutation(async ({ input }) => {
-      const res = await fetch(`${RUST_URL}/internal/telemetry/ingest`, {
+      const { data, status } = await callRustEndpoint('/internal/telemetry/ingest', {
         method: 'POST',
         body: JSON.stringify(input),
         headers: {
-          'Content-Type': 'application/json',
           'x-scemas-device-id': input.sensorId,
           'x-scemas-device-token': buildDeviceAuthToken(),
         },
       })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error ?? 'telemetry ingestion failed')
+
+      if (status >= 400) {
+        throw new Error(getTelemetryErrorMessage(data))
       }
-      return res.json()
+
+      return data
     }),
 
   // get recent readings for a zone (operator view: full data)
@@ -88,3 +87,16 @@ export const telemetryRouter = router({
       }))
     }),
 })
+
+function getTelemetryErrorMessage(payload: unknown): string {
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'error' in payload &&
+    typeof payload.error === 'string'
+  ) {
+    return payload.error
+  }
+
+  return 'telemetry ingestion failed'
+}

@@ -1,0 +1,120 @@
+@startuml alerting_management_controller
+hide empty description
+
+skinparam state {
+  BackgroundColor<<idle>> #F2F4F4
+  BorderColor<<idle>> #7F8C8D
+  FontColor<<idle>> #2C3E50
+
+  BackgroundColor<<evaluate>> #D6EAF8
+  BorderColor<<evaluate>> #2980B9
+  FontColor<<evaluate>> #1A5276
+
+  BackgroundColor<<alert>> #FCEAE8
+  BorderColor<<alert>> #ea9a97
+  FontColor<<alert>> #6B3A38
+
+  BackgroundColor<<dispatch>> #EDE8F5
+  BorderColor<<dispatch>> #a692c3
+  FontColor<<dispatch>> #4A3767
+
+  BackgroundColor<<lifecycle>> #D5F5E3
+  BorderColor<<lifecycle>> #27AE60
+  FontColor<<lifecycle>> #1E8449
+
+  BackgroundColor<<rule>> #FFF9C4
+  BorderColor<<rule>> #F9A825
+  FontColor<<rule>> #5D4037
+
+  StartColor black
+  EndColor black
+}
+
+' ──────────────────────────────────
+' BLACKBOARD SHARED STATE
+' ──────────────────────────────────
+
+state "Blackboard" as BB <<idle>> {
+  state "ActiveRules" as AR <<rule>>
+  state "ActiveAlerts" as AA <<alert>>
+  note right of AR
+    HashMap<Uuid, ThresholdRule>
+    loaded from DB on startup,
+    updated via rule CRUD
+  end note
+  note right of AA
+    HashMap<Uuid, Alert>
+    in-memory active alert tracking
+  end note
+}
+
+' ──────────────────────────────────
+' KNOWLEDGE SOURCE 1: EVALUATOR
+' ──────────────────────────────────
+
+state "Evaluator" as EVAL <<evaluate>> {
+  state "ReadActiveRules" as RAR <<evaluate>>
+  state "MatchReadingAgainstRules" as MAR <<evaluate>>
+  state "ClassifySeverity" as CS <<evaluate>>
+  state "PersistAlert" as PA <<evaluate>>
+  RAR --> MAR : rules loaded
+  MAR --> CS : threshold exceeded
+  CS --> PA : severity assigned\n(>1.5x = critical,\n>1.2x = warning,\nelse = low)
+}
+
+' ──────────────────────────────────
+' KNOWLEDGE SOURCE 2: DISPATCHER
+' ──────────────────────────────────
+
+state "Dispatcher" as DISP <<dispatch>> {
+  state "LoadSubscriptions" as LS <<dispatch>>
+  state "FindSubscribers" as FS <<dispatch>>
+  state "RecordDispatch" as RD <<dispatch>>
+  LS --> FS : subscriptions loaded
+  FS --> RD : matching operators found
+}
+
+' ──────────────────────────────────
+' KNOWLEDGE SOURCE 3: LIFECYCLE
+' ──────────────────────────────────
+
+state "Lifecycle" as LC <<lifecycle>> {
+  state "Triggered" as T <<alert>>
+  state "Active" as ACT <<alert>>
+  state "Acknowledged" as ACK <<lifecycle>>
+  state "Resolved" as RES <<lifecycle>>
+  T --> ACT : auto-transition
+  ACT --> ACK : operator acknowledges
+  ACT --> RES : operator resolves (direct)
+  ACK --> RES : operator resolves
+}
+
+' ──────────────────────────────────
+' TRANSITIONS
+' ──────────────────────────────────
+
+[*] --> BB : load rules from DB on startup
+
+BB --> EVAL : new sensor reading arrives
+EVAL --> BB : post alert to blackboard
+EVAL --> DISP : alerts created
+DISP --> BB : dispatch results logged
+
+BB --> LC : operator action on alert
+LC --> BB : alert status updated
+
+MAR --> [*] : no rules violated (reading discarded)
+
+' ──────────────────────────────────
+' RULE MANAGEMENT (admin path)
+' ──────────────────────────────────
+
+state "RuleManagement" as RM <<rule>> {
+  state "CreateRule" as CR <<rule>>
+  state "ToggleRuleStatus" as TRS <<rule>>
+  state "DeleteRule" as DR <<rule>>
+}
+
+RM --> BB : upsert or remove rule\nfrom blackboard
+
+@enduml

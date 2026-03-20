@@ -10,6 +10,8 @@ import { SignOutForm } from '@/components/layout/sign-out-form'
 import { Button } from '@/components/ui/button'
 import { SESSION_COOKIE_NAME } from '@/lib/session'
 
+export const dynamic = 'force-dynamic'
+
 export default async function PublicLayout({
   children,
 }: {

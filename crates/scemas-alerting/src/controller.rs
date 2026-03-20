@@ -151,10 +151,23 @@ impl AlertingManager {
     }
 
     pub async fn delete_rule(&self, rule_id: Uuid, deleted_by: Uuid) -> Result<()> {
-        sqlx::query("DELETE FROM threshold_rules WHERE id = $1")
+        let mut tx = self.db.begin().await?;
+
+        sqlx::query("UPDATE alerts SET rule_id = NULL WHERE rule_id = $1")
             .bind(rule_id)
-            .execute(&self.db)
+            .execute(&mut *tx)
             .await?;
+
+        let deleted = sqlx::query("DELETE FROM threshold_rules WHERE id = $1")
+            .bind(rule_id)
+            .execute(&mut *tx)
+            .await?;
+
+        if deleted.rows_affected() == 0 {
+            return Err(Error::NotFound(format!("rule {rule_id} was not found")));
+        }
+
+        tx.commit().await?;
 
         self.blackboard.write().await.remove_rule(&rule_id);
         self.insert_audit_log(
@@ -279,7 +292,10 @@ impl AlertingManager {
         .fetch_all(&self.db)
         .await?;
 
-        Ok(rows.into_iter().filter_map(|row| row.try_into().ok()).collect())
+        Ok(rows
+            .into_iter()
+            .filter_map(|row| row.try_into().ok())
+            .collect())
     }
 
     async fn dispatch_alerts(&self, alerts: &[Alert]) -> Result<()> {

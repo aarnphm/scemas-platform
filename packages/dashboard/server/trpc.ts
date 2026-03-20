@@ -4,10 +4,11 @@
 import { initTRPC, TRPCError } from '@trpc/server'
 import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import superjson from 'superjson'
-import { createDb, type Database } from '@scemas/db'
+import type { Database } from '@scemas/db'
 
 import { resolveSessionUser, type SessionUser } from '@/lib/session'
-import { getDatabaseUrl, getJwtSecret } from './env'
+import { getJwtSecret } from './env'
+import { getDb } from './cached'
 
 export type Context = {
   db: Database
@@ -20,7 +21,7 @@ export type AuthenticatedContext = Context & { user: SessionUser }
 export async function createContext(
   opts: FetchCreateContextFnOptions,
 ): Promise<Context> {
-  const db = createDb(getDatabaseUrl())
+  const db = getDb()
   const user = await resolveSessionUser(
     opts.req.headers.get('cookie'),
     getJwtSecret(),

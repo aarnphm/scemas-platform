@@ -10,7 +10,8 @@ import {
   sessionLandingPath,
 } from '@/lib/session'
 import { getDb } from '@/server/cached'
-import { getInternalRustUrl, getJwtSecret } from '@/server/env'
+import { getJwtSecret } from '@/server/env'
+import { callRustEndpoint } from '@/server/rust-client'
 import { IngestionFunnelWrapper, PlatformHealthWrapper } from './health-charts'
 
 type IngestionHealth = {
@@ -93,10 +94,11 @@ export default async function HealthPage() {
 
 async function fetchIngestionHealth(): Promise<IngestionHealth> {
   try {
-    const response = await fetch(`${getInternalRustUrl()}/internal/health`, {
-      cache: 'no-store',
+    const { data, status } = await callRustEndpoint('/internal/health', {
+      method: 'GET',
     })
-    if (!response.ok) {
+
+    if (status >= 400) {
       return {
         total_received: 0,
         total_accepted: 0,
@@ -104,8 +106,7 @@ async function fetchIngestionHealth(): Promise<IngestionHealth> {
       }
     }
 
-    const payload = await response.json()
-    if (!payload || typeof payload !== 'object') {
+    if (!isRecord(data)) {
       return {
         total_received: 0,
         total_accepted: 0,
@@ -114,9 +115,9 @@ async function fetchIngestionHealth(): Promise<IngestionHealth> {
     }
 
     return {
-      total_received: getNumericField(payload, 'total_received'),
-      total_accepted: getNumericField(payload, 'total_accepted'),
-      total_rejected: getNumericField(payload, 'total_rejected'),
+      total_received: getNumericField(data, 'total_received'),
+      total_accepted: getNumericField(data, 'total_accepted'),
+      total_rejected: getNumericField(data, 'total_rejected'),
     }
   } catch {
     return {
@@ -134,6 +135,10 @@ function getNumericField(payload: Record<string, unknown>, key: string): number 
 
   const value = payload[key]
   return typeof value === 'number' ? value : 0
+}
+
+function isRecord(payload: unknown): payload is Record<string, unknown> {
+  return typeof payload === 'object' && payload !== null
 }
 
 function formatNumber(value: number | null): string {

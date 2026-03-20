@@ -1,0 +1,38 @@
+@startuml
+title Manage Personalized Alert Subscriptions
+
+actor "City Operator" as Operator
+participant "Manage Alert\nSubscriptions" as MAS
+participant "Alerting\nManagement" as AM
+database "Alert\nSubscriptions DB" as DB
+
+== View Current Subscription ==
+
+Operator -> MAS : Open Subscription Settings
+MAS -> AM : Request Current Preferences
+AM -> DB : Query Subscription (userId)
+DB --> AM : Subscription or null
+AM --> MAS : Display Current Preferences
+MAS --> Operator : Show Metric Types, Zones, Min Severity
+
+== Update Subscription ==
+
+Operator -> MAS : Select Metrics, Zones, Severity
+MAS -> AM : Submit Updated Preferences
+AM -> AM : Validate Selections
+AM -> DB : Upsert Subscription
+DB --> AM : Subscription Saved
+AM --> MAS : Send Confirmation
+MAS --> Operator : Confirm Subscriptions Updated
+
+== Alert Filtering (Subsequent Alerts) ==
+
+note over AM, DB
+  When a new alert is created, the Dispatcher
+  knowledge source loads subscriptions from DB,
+  calls find_subscribers(), and only notifies
+  operators whose preferences match the alert's
+  metric type, zone, and severity.
+end note
+
+@enduml

@@ -1,11 +1,11 @@
 // seed script: continuously generates sensor data using poisson/gamma distributions
-// usage: bun run scripts/seed.ts [--spike] [--rate <readings-per-second>]
+// usage: bun run scripts/seed.ts [--spike] [--rate <readings-per-second>] [--remote <url>]
 //   ctrl-c to stop and print summary
 
-const RUST_URL = process.env.INTERNAL_RUST_URL ?? 'http://localhost:3001'
+const seedOptions = parseSeedOptions(process.argv.slice(2))
+const RUST_URL = seedOptions.remoteUrl ?? process.env.INTERNAL_RUST_URL ?? 'http://localhost:3001'
 const DEVICE_AUTH_SECRET =
   process.env.DEVICE_AUTH_SECRET ?? 'change-me-device-ingest-secret'
-const seedOptions = parseSeedOptions(process.argv.slice(2))
 
 interface Sensor {
   sensor_id: string
@@ -164,6 +164,7 @@ async function main() {
 function parseSeedOptions(args: string[]): SeedOptions {
   let isSpike = false
   let ratePerSecond = 2
+  let remoteUrl: string | undefined
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
@@ -193,12 +194,29 @@ function parseSeedOptions(args: string[]): SeedOptions {
       continue
     }
 
+    if (argument === '--remote') {
+      const nextArgument = args[index + 1]
+      if (!nextArgument) {
+        printUsageAndExit(1, 'missing value for --remote')
+      }
+
+      remoteUrl = nextArgument
+      index += 1
+      continue
+    }
+
+    if (argument.startsWith('--remote=')) {
+      remoteUrl = argument.slice('--remote='.length)
+      continue
+    }
+
     printUsageAndExit(1, `unknown argument: ${argument}`)
   }
 
   return {
     isSpike,
     ratePerSecond,
+    remoteUrl,
   }
 }
 
@@ -217,11 +235,12 @@ function printUsageAndExit(exitCode: number, errorMessage?: string): never {
     console.error('')
   }
 
-  console.log('usage: bun run scripts/seed.ts [--spike] [--rate <readings-per-second>]')
+  console.log('usage: bun run scripts/seed.ts [--spike] [--rate <readings-per-second>] [--remote <url>]')
   console.log('')
   console.log('options:')
   console.log('  --spike          generate readings that should trigger alerts')
   console.log('  --rate <value>   aggregate poisson arrival rate across all sensors')
+  console.log('  --remote <url>   override the rust engine URL (default: INTERNAL_RUST_URL or localhost:3001)')
   console.log('  --help           show this help message')
   process.exit(exitCode)
 }
@@ -233,6 +252,7 @@ function formatRate(value: number): string {
 type SeedOptions = {
   isSpike: boolean
   ratePerSecond: number
+  remoteUrl?: string
 }
 
 main()
