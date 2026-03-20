@@ -2,12 +2,17 @@
 
 import { trpc } from '@/lib/trpc'
 
-export function BackendStatus() {
-  const ping = trpc.health.ping.useQuery(undefined, { refetchInterval: 10_000, retry: false })
+export function useBackendPing() {
+  const ping = trpc.health.ping.useQuery(undefined, {
+    refetchInterval: 10_000,
+    retry: false,
+    placeholderData: prev => prev,
+  })
 
-  const ok = ping.data?.ok === true
-  const loading = ping.isLoading
+  return { ok: ping.data?.ok === true, loading: ping.isLoading }
+}
 
+export function BackendStatus({ ok, loading }: { ok: boolean; loading: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <span
@@ -19,7 +24,7 @@ export function BackendStatus() {
               : 'size-1.5 rounded-full bg-red-500'
         }
       />
-      {loading ? null : ok ? 'operational' : 'offline'}
+      {ok ? 'operational' : 'offline'}
     </span>
   )
 }

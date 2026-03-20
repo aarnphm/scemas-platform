@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { type FormEvent, startTransition, useState } from 'react'
-import { BackendStatus } from '@/components/backend-status'
+import { BackendStatus, useBackendPing } from '@/components/backend-status'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
@@ -11,6 +11,7 @@ import { trpc } from '@/lib/trpc'
 
 export function LoginForm() {
   const router = useRouter()
+  const { ok: backendOk, loading: backendLoading } = useBackendPing()
   const [submissionError, setSubmissionError] = useState<string | null>(null)
   const login = trpc.auth.login.useMutation({
     onSuccess: result => {
@@ -24,6 +25,8 @@ export function LoginForm() {
       setSubmissionError(error.message)
     },
   })
+
+  const disabled = !backendOk && !backendLoading
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -43,49 +46,53 @@ export function LoginForm() {
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="email">
-          email
-        </label>
-        <Input
-          autoComplete="email"
-          id="email"
-          name="email"
-          placeholder="operator@scemas.local"
-          required
-          type="email"
-        />
-      </div>
+      <fieldset className={disabled ? 'opacity-50' : undefined} disabled={disabled}>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="email">
+              email
+            </label>
+            <Input
+              autoComplete="email"
+              id="email"
+              name="email"
+              placeholder="operator@scemas.local"
+              required
+              type="email"
+            />
+          </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="password">
-          password
-        </label>
-        <Input
-          autoComplete="current-password"
-          id="password"
-          name="password"
-          required
-          type="password"
-        />
-      </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="password">
+              password
+            </label>
+            <Input
+              autoComplete="current-password"
+              id="password"
+              name="password"
+              required
+              type="password"
+            />
+          </div>
 
-      {submissionError ? (
-        <p className="text-sm text-destructive" role="alert">
-          {submissionError}
-        </p>
-      ) : null}
+          {submissionError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {submissionError}
+            </p>
+          ) : null}
 
-      <Button className="w-full" disabled={login.isPending} type="submit">
-        {login.isPending ? (
-          <span className="inline-flex items-center gap-2">
-            <Spinner />
-            signing in
-          </span>
-        ) : (
-          'sign in'
-        )}
-      </Button>
+          <Button className="w-full" disabled={login.isPending || disabled} type="submit">
+            {login.isPending ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner />
+                signing in
+              </span>
+            ) : (
+              'sign in'
+            )}
+          </Button>
+        </div>
+      </fieldset>
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <p>
@@ -94,7 +101,7 @@ export function LoginForm() {
             sign up
           </Link>
         </p>
-        <BackendStatus />
+        <BackendStatus ok={backendOk} loading={backendLoading} />
       </div>
     </form>
   )

@@ -11,7 +11,7 @@ export class ScemaEngine extends Container<Env> {
   defaultPort = 3001
   requiredPorts = [3001]
   sleepAfter = '30s'
-  pingEndpoint = 'container/internal/health'
+  pingEndpoint = '/internal/health'
 }
 
 export default {
