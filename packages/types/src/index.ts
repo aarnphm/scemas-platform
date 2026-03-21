@@ -259,6 +259,48 @@ export const CreateApiTokenResponseSchema = z.object({
 })
 export type CreateApiTokenResponse = z.infer<typeof CreateApiTokenResponseSchema>
 
+export const HazardReportCategorySchema = z.enum([
+  'environmental_hazard',
+  'system_misuse',
+  'inappropriate_content',
+  'other',
+])
+export type HazardReportCategory = z.infer<typeof HazardReportCategorySchema>
+
+export const HazardReportStatusSchema = z.enum(['pending', 'reviewing', 'resolved', 'dismissed'])
+export type HazardReportStatus = z.infer<typeof HazardReportStatusSchema>
+
+export const CreateHazardReportSchema = z.object({
+  zone: z.string().min(1),
+  category: HazardReportCategorySchema,
+  description: z.string().min(10).max(500),
+  contactEmail: z.string().email().nullable().optional(),
+})
+export type CreateHazardReport = z.infer<typeof CreateHazardReportSchema>
+
+export const HazardReportSchema = z.object({
+  id: z.string().uuid(),
+  zone: z.string(),
+  category: HazardReportCategorySchema,
+  description: z.string(),
+  status: HazardReportStatusSchema,
+  contactEmail: z.string().email().nullable().optional(),
+  reportedBy: z.string().uuid().nullable().optional(),
+  reviewedBy: z.string().uuid().nullable().optional(),
+  reviewNote: z.string().nullable().optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  resolvedAt: z.string().datetime().nullable().optional(),
+})
+export type HazardReport = z.infer<typeof HazardReportSchema>
+
+export const UpdateHazardReportStatusSchema = z.object({
+  id: z.string().uuid(),
+  status: HazardReportStatusSchema,
+  reviewNote: z.string().max(500).nullable().optional(),
+})
+export type UpdateHazardReportStatus = z.infer<typeof UpdateHazardReportStatusSchema>
+
 export const ZoneAQISchema = z.object({
   zone: z.string(),
   aqi: z.number(),

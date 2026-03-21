@@ -295,7 +295,7 @@ function ActiveSessionsPanel() {
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-medium">active sessions</span>
-          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+          <span className="font-mono text-[11px] tabular-nums text-muted-foreground/50">
             {sessions.length}
           </span>
         </div>
@@ -309,10 +309,10 @@ function ActiveSessionsPanel() {
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">no active sessions</p>
       ) : (
         <>
-          <div className="divide-y divide-border">
+          <div className="min-h-[calc(theme(spacing.14)*4)] divide-y divide-border">
             {pageSessions.map(session => (
               <div
-                className="flex items-center justify-between px-4 py-3"
+                className="flex h-14 items-center justify-between px-4"
                 key={session.tokenValue}
               >
                 <div className="space-y-0.5">

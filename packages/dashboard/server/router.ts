@@ -8,6 +8,7 @@ import { auditRouter } from './routers/audit'
 import { authRouter } from './routers/auth'
 import { healthRouter } from './routers/health'
 import { publicRouter } from './routers/public'
+import { reportsRouter } from './routers/reports'
 import { rulesRouter } from './routers/rules'
 import { subscriptionsRouter } from './routers/subscriptions'
 import { telemetryRouter } from './routers/telemetry'
@@ -22,6 +23,7 @@ export const appRouter = router({
   rules: rulesRouter, // DefineThresholdRules boundary
   subscriptions: subscriptionsRouter, // ManageAlertSubscriptions boundary (innovative feature)
   users: usersRouter, // ManageSecurityPermissions boundary
+  reports: reportsRouter, // ReportEnvironmentalHazard boundary (SRS CP-C3)
   public: publicRouter, // ProvidePublicAPI boundary (abstraction: filtered data)
   health: healthRouter, // MonitorSCEMASPlatformStatus boundary
   audit: auditRouter, // AlertAndAuditLogDB viewer

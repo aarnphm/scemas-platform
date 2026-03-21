@@ -2,8 +2,8 @@
 // shows: metric KPIs, region metrics chart, sensor feed, alert frequency, active alerts
 // this is the primary Presentation component for the operator agent
 
-import { alerts } from '@scemas/db/schema'
-import { desc, eq } from 'drizzle-orm'
+import { alerts, hazardReports } from '@scemas/db/schema'
+import { count, desc, eq } from 'drizzle-orm'
 import { Suspense } from 'react'
 import { ZoneMap, type SensorPin } from '@/components/map/zone-map'
 import { SeverityBadge } from '@/components/ui/severity-badge'
@@ -49,6 +49,10 @@ export default function OperatorDashboard() {
           <ActiveAlertsPanel />
         </Suspense>
       </div>
+
+      <Suspense fallback={null}>
+        <HazardReportsSummary />
+      </Suspense>
 
       <AlertFrequencyPanel />
     </div>
@@ -227,6 +231,30 @@ async function ActiveAlertsPanel() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+async function HazardReportsSummary() {
+  const db = getDb()
+
+  const rows = await db
+    .select({ status: hazardReports.status, count: count() })
+    .from(hazardReports)
+    .groupBy(hazardReports.status)
+
+  const pending = rows.find(r => r.status === 'pending')?.count ?? 0
+  const reviewing = rows.find(r => r.status === 'reviewing')?.count ?? 0
+
+  if (pending === 0 && reviewing === 0) return null
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <h2 className="text-sm font-medium">hazard reports</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        <span className="font-mono tabular-nums">{pending}</span> pending,{' '}
+        <span className="font-mono tabular-nums">{reviewing}</span> under review
+      </p>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { CopyButton } from '@/components/copy-button'
 import { Spinner } from '@/components/ui/spinner'
 import { trpc } from '@/lib/trpc'
@@ -30,6 +30,10 @@ export function AuditLogList() {
     estimateSize: i => (logs[i]?.id === expandedId ? ROW_HEIGHT + DETAIL_HEIGHT : ROW_HEIGHT),
     overscan: 10,
   })
+
+  useLayoutEffect(() => {
+    virtualizer.measure()
+  }, [expandedId])
 
   if (auditQuery.isLoading) {
     return (
@@ -63,7 +67,6 @@ export function AuditLogList() {
 
   function handleToggle(log: AuditEntry) {
     setExpandedId(prev => (prev === log.id ? null : log.id))
-    requestAnimationFrame(() => virtualizer.measure())
   }
 
   return (

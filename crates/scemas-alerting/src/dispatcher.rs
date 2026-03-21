@@ -66,6 +66,7 @@ mod tests {
             metric_types: vec![MetricType::Temperature],
             zones: vec!["downtown_core".into()],
             min_severity: Severity::Low,
+            webhook_url: None,
         }
     }
 

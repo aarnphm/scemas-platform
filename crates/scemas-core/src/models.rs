@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// ─── AccessManager entities ───
+//  AccessManager entities
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserInformation {
@@ -48,7 +48,7 @@ pub enum DeviceStatus {
     Revoked,
 }
 
-// ─── TelemetryManager entities ───
+//  TelemetryManager entities
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,7 +80,7 @@ impl std::fmt::Display for MetricType {
     }
 }
 
-// ─── AlertingManager entities ───
+//  AlertingManager entities
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -139,7 +139,7 @@ pub enum AlertStatus {
     Resolved,
 }
 
-// ─── DataDistributionManager entities ───
+//  DataDistributionManager entities
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalyticsRecord {
@@ -160,7 +160,7 @@ pub struct PlatformStatus {
     pub time: DateTime<Utc>,
 }
 
-// ─── IngestionFailure (ingestion_failures table) ───
+//  IngestionFailure (ingestion_failures table)
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IngestionFailure {
@@ -176,7 +176,43 @@ pub struct IngestionFailure {
     pub resolved_at: Option<DateTime<Utc>>,
 }
 
-// ─── Innovative feature: alert subscriptions ───
+//  DataDistributionManager: hazard reports (CP-C3)
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HazardReport {
+    pub id: Uuid,
+    pub zone: String,
+    pub category: HazardReportCategory,
+    pub description: String,
+    pub status: HazardReportStatus,
+    pub contact_email: Option<String>,
+    pub reported_by: Option<Uuid>,
+    pub reviewed_by: Option<Uuid>,
+    pub review_note: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub resolved_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum HazardReportCategory {
+    EnvironmentalHazard,
+    SystemMisuse,
+    InappropriateContent,
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum HazardReportStatus {
+    Pending,
+    Reviewing,
+    Resolved,
+    Dismissed,
+}
+
+//  Innovative feature: alert subscriptions
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertSubscription {

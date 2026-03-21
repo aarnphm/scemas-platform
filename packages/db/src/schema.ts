@@ -235,6 +235,31 @@ export const apiTokens = pgTable(
   }),
 )
 
+export const hazardReports = pgTable(
+  'hazard_reports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    zone: text('zone').notNull(),
+    category: text('category').notNull(),
+    description: text('description').notNull(),
+    status: text('status').notNull().default('pending'),
+    contactEmail: text('contact_email'),
+    reportedBy: uuid('reported_by').references(() => accounts.id),
+    reviewedBy: uuid('reviewed_by').references(() => accounts.id),
+    reviewNote: text('review_note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  table => ({
+    statusCreatedAtIdx: index('hazard_reports_status_created_at_idx').on(
+      table.status,
+      table.createdAt,
+    ),
+    zoneStatusIdx: index('hazard_reports_zone_status_idx').on(table.zone, table.status),
+  }),
+)
+
 export const platformStatus = pgTable(
   'platform_status',
   {

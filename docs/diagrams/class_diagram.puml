@@ -167,6 +167,11 @@ class MonitorSCEMASPlatformStatus {
   + displaySecurityStatus() : void
 }
 
+class ReportEnvironmentalHazard {
+  + submitReport() : void
+  + reviewReport() : void
+}
+
 ' ─────────────────────────────────────────
 ' ENTITIES
 ' ─────────────────────────────────────────
@@ -275,6 +280,22 @@ class AlertSubscriptionDB {
   + matchesAlert(alert : AlertAndAuditLogDB) : Boolean
 }
 
+class HazardReportDB {
+  - String zone
+  - String category
+  - String description
+  - String status
+  - String contactEmail
+  - String reportedBy
+  - String reviewedBy
+  - String reviewNote
+  - Date createdAt
+  - Date resolvedAt
+  --
+  + store(report : HazardReport) : void
+  + updateStatus(reportId : String, status : String) : void
+}
+
 ' ─────────────────────────────────────────
 ' TELEMETRY RELATIONSHIPS
 ' ─────────────────────────────────────────
@@ -329,6 +350,9 @@ DataDistributionManager --> IndividualSensorReading
 DataDistributionManager --> MonitorSCEMASPlatformStatus
 DataDistributionManager --> SCEMASPlatformStatusDB
 DataDistributionManager --> AccessManagement
+DataDistributionManager --> ReportEnvironmentalHazard
+ReportEnvironmentalHazard --> HazardReportDB
+HazardReportDB --> UserInformation
 
 ' ─────────────────────────────────────────
 ' CROSS-CONTROLLER SHARED
