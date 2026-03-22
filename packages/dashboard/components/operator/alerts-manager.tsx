@@ -154,7 +154,10 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
                 <div
                   className="absolute left-0 top-0 w-full"
                   key={alert.id}
-                  style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
+                  style={{
+                    height: virtualRow.size,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
                 >
                   <Link
                     className={`flex size-full items-center justify-between gap-2 border-b border-border px-4 transition-colors ${isResolved ? 'bg-emerald-500/5' : 'hover:bg-muted/50'}`}
@@ -228,7 +231,9 @@ function AckIcon({
               <HugeiconsIcon icon={Tick02Icon} size={14} strokeWidth={2} />
             </span>
           </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={4}>acknowledged</TooltipContent>
+          <TooltipContent side="top" sideOffset={4}>
+            acknowledged
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
     )
@@ -245,10 +250,16 @@ function AckIcon({
             onClick={onAck}
             type="button"
           >
-            {isLoading ? <Spinner /> : <HugeiconsIcon icon={Tick02Icon} size={14} strokeWidth={2} />}
+            {isLoading ? (
+              <Spinner />
+            ) : (
+              <HugeiconsIcon icon={Tick02Icon} size={14} strokeWidth={2} />
+            )}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={4}>acknowledge</TooltipContent>
+        <TooltipContent side="top" sideOffset={4}>
+          acknowledge
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )
@@ -277,7 +288,9 @@ function ResolveIcon({
               <HugeiconsIcon icon={TickDouble02Icon} size={14} strokeWidth={2} />
             </span>
           </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={4}>resolved</TooltipContent>
+          <TooltipContent side="top" sideOffset={4}>
+            resolved
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
     )
@@ -294,10 +307,16 @@ function ResolveIcon({
             onClick={onResolve}
             type="button"
           >
-            {isLoading ? <Spinner /> : <HugeiconsIcon icon={TickDouble02Icon} size={14} strokeWidth={2} />}
+            {isLoading ? (
+              <Spinner />
+            ) : (
+              <HugeiconsIcon icon={TickDouble02Icon} size={14} strokeWidth={2} />
+            )}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={4}>resolve</TooltipContent>
+        <TooltipContent side="top" sideOffset={4}>
+          resolve
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )

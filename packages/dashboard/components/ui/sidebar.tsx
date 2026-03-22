@@ -181,24 +181,19 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Drawer open={openMobile} onOpenChange={setOpenMobile} direction="left">
+      <Drawer open={openMobile} onOpenChange={setOpenMobile} direction="bottom">
         <DrawerContent
           dir={dir}
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="w-(--sidebar-width) bg-transparent p-0 text-sidebar-foreground [&>div]:hidden"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-            } as React.CSSProperties
-          }
+          className="max-h-[80dvh] bg-sidebar p-0 text-sidebar-foreground before:hidden"
         >
           <DrawerHeader className="sr-only">
             <DrawerTitle>Sidebar</DrawerTitle>
             <DrawerDescription>Displays the mobile sidebar.</DrawerDescription>
           </DrawerHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div className="flex w-full flex-col overflow-y-auto p-2">{children}</div>
         </DrawerContent>
       </Drawer>
     )

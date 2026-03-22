@@ -2,15 +2,18 @@
 
 import { useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
+import { usePublicSettings } from '@/lib/settings'
 import { Spinner } from '@/components/ui/spinner'
 import { trpc } from '@/lib/trpc'
 import { cn } from '@/lib/utils'
 import { ZoneAqiBarChart } from './zone-aqi-bar-chart'
 
-const ZONES_PER_PAGE = 4
-
 export function ZoneAqiGrid() {
-  const regionAqi = trpc.public.getZoneSummary.useQuery(undefined, { refetchInterval: 10_000 })
+  const pageSize = usePublicSettings(s => s.pageSize)
+  const refreshInterval = usePublicSettings(s => s.refreshInterval)
+  const regionAqi = trpc.public.getZoneSummary.useQuery(undefined, {
+    refetchInterval: refreshInterval * 1000,
+  })
   const regions = regionAqi.data ?? []
   const [page, setPage] = useState(0)
 
@@ -42,10 +45,10 @@ export function ZoneAqiGrid() {
     )
   }
 
-  const totalPages = Math.ceil(regions.length / ZONES_PER_PAGE)
+  const totalPages = Math.ceil(regions.length / pageSize)
   const safePage = Math.min(page, Math.max(0, totalPages - 1))
-  const pageRegions = regions.slice(safePage * ZONES_PER_PAGE, (safePage + 1) * ZONES_PER_PAGE)
-  const emptySlots = ZONES_PER_PAGE - pageRegions.length
+  const pageRegions = regions.slice(safePage * pageSize, (safePage + 1) * pageSize)
+  const emptySlots = pageSize - pageRegions.length
 
   return (
     <div className="space-y-6">
@@ -86,7 +89,7 @@ export function ZoneAqiGrid() {
         <ListPagination
           onPageChange={setPage}
           page={safePage}
-          pageSize={ZONES_PER_PAGE}
+          pageSize={pageSize}
           totalItems={regions.length}
           totalPages={totalPages}
         />
@@ -130,7 +133,10 @@ function Row({
     <>
       <span className="px-3 py-1 text-[10px] text-muted-foreground/50">{label}</span>
       <span
-        className={cn('truncate px-3 py-1 text-xs text-foreground/80', mono && 'font-mono tabular-nums')}
+        className={cn(
+          'truncate px-3 py-1 text-xs text-foreground/80',
+          mono && 'font-mono tabular-nums',
+        )}
         style={color ? { color } : undefined}
       >
         {value}

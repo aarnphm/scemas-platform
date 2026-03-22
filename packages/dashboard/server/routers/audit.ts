@@ -7,10 +7,7 @@ export const auditRouter = router({
   list: adminProcedure
     .input(
       z
-        .object({
-          limit: z.number().min(1).max(200).default(100),
-          cursor: z.number().optional(),
-        })
+        .object({ limit: z.number().min(1).max(200).default(100), cursor: z.number().optional() })
         .optional(),
     )
     .query(async ({ ctx, input }) => {

@@ -6,7 +6,6 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::{DateTime, Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header};
-use rand::Rng;
 use scemas_core::error::{Error, Result};
 use scemas_core::models::{DeviceIdentity, DeviceStatus, MetricType, Role, UserInformation};
 use serde::{Deserialize, Serialize};
@@ -566,7 +565,7 @@ pub struct CreateApiTokenResponse {
 
 fn generate_api_token() -> String {
     let mut bytes = [0u8; TOKEN_RANDOM_BYTES];
-    rand::rng().fill(&mut bytes);
+    rand::fill(&mut bytes);
     format!("{}{}", TOKEN_PREFIX, URL_SAFE_NO_PAD.encode(bytes))
 }
 

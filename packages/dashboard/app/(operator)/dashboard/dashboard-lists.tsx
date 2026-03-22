@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
-import { usePageSize } from '@/lib/settings'
 import { SeverityBadge } from '@/components/ui/severity-badge'
+import { usePageSize } from '@/lib/settings'
 
 type SensorFeedItem = {
   key: string
@@ -25,10 +25,7 @@ export function PaginatedSensorFeed({ items }: { items: SensorFeedItem[] }) {
     <>
       <div className="space-y-px pb-2 text-sm text-muted-foreground">
         {pageItems.map(item => (
-          <div
-            className="flex items-start justify-between gap-3 px-4 py-2"
-            key={item.key}
-          >
+          <div className="flex items-start justify-between gap-3 px-4 py-2" key={item.key}>
             <div className="min-w-0">
               <p className="truncate text-foreground">{item.displayName}</p>
               <p className="truncate text-xs text-muted-foreground">
@@ -90,9 +87,7 @@ export function PaginatedAlertFeed({ items }: { items: AlertFeedItem[] }) {
       {scrollable ? (
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 h-8"
-          style={{
-            background: 'linear-gradient(to bottom, transparent, var(--color-card))',
-          }}
+          style={{ background: 'linear-gradient(to bottom, transparent, var(--color-card))' }}
         />
       ) : null}
     </div>

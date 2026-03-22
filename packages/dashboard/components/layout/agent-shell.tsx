@@ -74,7 +74,7 @@ export async function AgentShell({ title, navItems = [], navExtra, children }: A
 
         <SidebarFooter className="px-2 pb-3">
           {account ? (
-            <AccountPopover username={account.username} email={account.email} />
+            <AccountPopover username={account.username} email={account.email} role={account.role} />
           ) : (
             <Button asChild className="w-full justify-center" variant="outline">
               <Link href="/sign-in">sign in</Link>

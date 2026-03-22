@@ -21,11 +21,13 @@ export const reportsRouter = router({
       })
       .returning({ id: hazardReports.id, status: hazardReports.status })
 
-    await ctx.db.insert(auditLogs).values({
-      userId: ctx.user?.id ?? null,
-      action: 'report.submitted',
-      details: { reportId: report.id, zone: input.zone, category: input.category },
-    })
+    await ctx.db
+      .insert(auditLogs)
+      .values({
+        userId: ctx.user?.id ?? null,
+        action: 'report.submitted',
+        details: { reportId: report.id, zone: input.zone, category: input.category },
+      })
 
     return report
   }),
@@ -74,9 +76,7 @@ export const reportsRouter = router({
   get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
-      return ctx.db.query.hazardReports.findFirst({
-        where: eq(hazardReports.id, input.id),
-      })
+      return ctx.db.query.hazardReports.findFirst({ where: eq(hazardReports.id, input.id) })
     }),
 
   updateStatus: adminProcedure
@@ -96,11 +96,13 @@ export const reportsRouter = router({
         })
         .where(eq(hazardReports.id, input.id))
 
-      await ctx.db.insert(auditLogs).values({
-        userId: ctx.user.id,
-        action: `report.${input.status}`,
-        details: { reportId: input.id, reviewNote: input.reviewNote ?? null },
-      })
+      await ctx.db
+        .insert(auditLogs)
+        .values({
+          userId: ctx.user.id,
+          action: `report.${input.status}`,
+          details: { reportId: input.id, reviewNote: input.reviewNote ?? null },
+        })
 
       return { success: true }
     }),
@@ -136,6 +138,12 @@ export const reportsRouter = router({
     const resolved = byStatus['resolved'] ?? 0
     const dismissed = byStatus['dismissed'] ?? 0
 
-    return { pending, reviewing, resolved, dismissed, total: pending + reviewing + resolved + dismissed }
+    return {
+      pending,
+      reviewing,
+      resolved,
+      dismissed,
+      total: pending + reviewing + resolved + dismissed,
+    }
   }),
 })

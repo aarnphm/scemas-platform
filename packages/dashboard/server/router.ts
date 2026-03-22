@@ -4,9 +4,9 @@
 
 import { alertsRouter } from './routers/alerts'
 import { apiTokensRouter } from './routers/api-tokens'
-import { devicesRouter } from './routers/devices'
 import { auditRouter } from './routers/audit'
 import { authRouter } from './routers/auth'
+import { devicesRouter } from './routers/devices'
 import { healthRouter } from './routers/health'
 import { publicRouter } from './routers/public'
 import { reportsRouter } from './routers/reports'

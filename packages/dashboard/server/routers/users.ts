@@ -186,11 +186,13 @@ export const usersRouter = router({
         .delete(activeSessionTokens)
         .where(eq(activeSessionTokens.tokenValue, input.tokenValue))
 
-      await ctx.db.insert(auditLogs).values({
-        userId: ctx.user.id,
-        action: 'session.revoked',
-        details: { targetUserId: session.userId },
-      })
+      await ctx.db
+        .insert(auditLogs)
+        .values({
+          userId: ctx.user.id,
+          action: 'session.revoked',
+          details: { targetUserId: session.userId },
+        })
 
       return { success: true }
     }),

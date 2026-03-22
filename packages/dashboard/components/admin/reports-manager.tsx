@@ -111,9 +111,7 @@ export function ReportsManager() {
                   <p className="text-sm text-pretty">{report.description}</p>
 
                   {report.contactEmail && (
-                    <p className="text-xs text-muted-foreground">
-                      contact: {report.contactEmail}
-                    </p>
+                    <p className="text-xs text-muted-foreground">contact: {report.contactEmail}</p>
                   )}
 
                   {report.reviewNote && (

@@ -147,7 +147,11 @@ export function ZoneMap({ sensors, alertCounts }: ZoneMapProps) {
               closeOnClick={false}
               className="sensor-popup"
             >
-              <div className="space-y-1 pr-4 text-xs" role="dialog" aria-label={`${selected.displayName} sensor details`}>
+              <div
+                className="space-y-1 pr-4 text-xs"
+                role="dialog"
+                aria-label={`${selected.displayName} sensor details`}
+              >
                 <p className="font-medium">{selected.displayName}</p>
                 <p className="font-mono text-[11px] text-muted-foreground">
                   {selected.sensorId} · {selected.assetId}

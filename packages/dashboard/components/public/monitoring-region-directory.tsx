@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
-import { usePageSize } from '@/lib/settings'
+import { usePublicSettings } from '@/lib/settings'
 import { sensorCatalog } from '@/lib/sensor-catalog'
 import { hamiltonMonitoringRegions } from '@/lib/zones'
 
@@ -43,7 +43,7 @@ const planningUnitCount = new Set(
 const stationCount = new Set(sensorCatalog.map(sensor => sensor.station_id)).size
 
 export function MonitoringRegionDirectory() {
-  const pageSize = usePageSize()
+  const pageSize = usePublicSettings(s => s.pageSize)
   const [page, setPage] = useState(0)
   const totalPages = Math.ceil(monitoringRegions.length / pageSize)
   const safePage = Math.min(page, Math.max(0, totalPages - 1))

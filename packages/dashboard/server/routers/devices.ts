@@ -3,30 +3,23 @@
 
 import { devices, auditLogs } from '@scemas/db/schema'
 import { RegisterDeviceSchema, UpdateDeviceSchema } from '@scemas/types'
+import { TRPCError } from '@trpc/server'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { formatZoneName, normalizeZoneId } from '@/lib/zones'
-import { router, adminProcedure } from '../trpc'
 import { callRustEndpoint, extractRustErrorMessage } from '../rust-client'
-import { TRPCError } from '@trpc/server'
+import { router, adminProcedure } from '../trpc'
 
 export const devicesRouter = router({
   list: adminProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.db.query.devices.findMany({
-      orderBy: [desc(devices.registeredAt)],
-    })
-    return rows.map(d => ({
-      ...d,
-      zoneName: formatZoneName(d.zone),
-    }))
+    const rows = await ctx.db.query.devices.findMany({ orderBy: [desc(devices.registeredAt)] })
+    return rows.map(d => ({ ...d, zoneName: formatZoneName(d.zone) }))
   }),
 
   get: adminProcedure
     .input(z.object({ deviceId: z.string().min(1) }))
     .query(async ({ input, ctx }) => {
-      return ctx.db.query.devices.findFirst({
-        where: eq(devices.deviceId, input.deviceId),
-      })
+      return ctx.db.query.devices.findFirst({ where: eq(devices.deviceId, input.deviceId) })
     }),
 
   register: adminProcedure.input(RegisterDeviceSchema).mutation(async ({ input, ctx }) => {

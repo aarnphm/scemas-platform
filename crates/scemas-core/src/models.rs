@@ -4,7 +4,24 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use uuid::Uuid;
+
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("unknown {kind}: {value}")]
+pub struct ParseModelError {
+    kind: &'static str,
+    value: String,
+}
+
+impl ParseModelError {
+    fn new(kind: &'static str, value: &str) -> Self {
+        Self {
+            kind,
+            value: value.to_owned(),
+        }
+    }
+}
 
 //  AccessManager entities
 
@@ -22,6 +39,29 @@ pub enum Role {
     Operator,
     Admin,
     Viewer,
+}
+
+impl std::fmt::Display for Role {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Role::Operator => write!(f, "operator"),
+            Role::Admin => write!(f, "admin"),
+            Role::Viewer => write!(f, "viewer"),
+        }
+    }
+}
+
+impl FromStr for Role {
+    type Err = ParseModelError;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "operator" => Ok(Role::Operator),
+            "admin" => Ok(Role::Admin),
+            "viewer" => Ok(Role::Viewer),
+            other => Err(ParseModelError::new("role", other)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +86,29 @@ pub enum DeviceStatus {
     Active,
     Inactive,
     Revoked,
+}
+
+impl std::fmt::Display for DeviceStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeviceStatus::Active => write!(f, "active"),
+            DeviceStatus::Inactive => write!(f, "inactive"),
+            DeviceStatus::Revoked => write!(f, "revoked"),
+        }
+    }
+}
+
+impl FromStr for DeviceStatus {
+    type Err = ParseModelError;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "active" => Ok(DeviceStatus::Active),
+            "inactive" => Ok(DeviceStatus::Inactive),
+            "revoked" => Ok(DeviceStatus::Revoked),
+            other => Err(ParseModelError::new("device status", other)),
+        }
+    }
 }
 
 //  TelemetryManager entities
@@ -80,6 +143,20 @@ impl std::fmt::Display for MetricType {
     }
 }
 
+impl FromStr for MetricType {
+    type Err = ParseModelError;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "temperature" => Ok(MetricType::Temperature),
+            "humidity" => Ok(MetricType::Humidity),
+            "air_quality" => Ok(MetricType::AirQuality),
+            "noise_level" => Ok(MetricType::NoiseLevel),
+            other => Err(ParseModelError::new("metric type", other)),
+        }
+    }
+}
+
 //  AlertingManager entities
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,11 +179,57 @@ pub enum Comparison {
     Lte,
 }
 
+impl std::fmt::Display for Comparison {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Comparison::Gt => write!(f, "gt"),
+            Comparison::Lt => write!(f, "lt"),
+            Comparison::Gte => write!(f, "gte"),
+            Comparison::Lte => write!(f, "lte"),
+        }
+    }
+}
+
+impl FromStr for Comparison {
+    type Err = ParseModelError;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "gt" => Ok(Comparison::Gt),
+            "lt" => Ok(Comparison::Lt),
+            "gte" => Ok(Comparison::Gte),
+            "lte" => Ok(Comparison::Lte),
+            other => Err(ParseModelError::new("comparison", other)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RuleStatus {
     Active,
     Inactive,
+}
+
+impl std::fmt::Display for RuleStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RuleStatus::Active => write!(f, "active"),
+            RuleStatus::Inactive => write!(f, "inactive"),
+        }
+    }
+}
+
+impl FromStr for RuleStatus {
+    type Err = ParseModelError;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "active" => Ok(RuleStatus::Active),
+            "inactive" => Ok(RuleStatus::Inactive),
+            other => Err(ParseModelError::new("rule status", other)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -130,6 +253,29 @@ pub enum Severity {
     Critical = 3,
 }
 
+impl std::fmt::Display for Severity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Severity::Low => write!(f, "low"),
+            Severity::Warning => write!(f, "warning"),
+            Severity::Critical => write!(f, "critical"),
+        }
+    }
+}
+
+impl TryFrom<i32> for Severity {
+    type Error = ParseModelError;
+
+    fn try_from(value: i32) -> std::result::Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Severity::Low),
+            2 => Ok(Severity::Warning),
+            3 => Ok(Severity::Critical),
+            other => Err(ParseModelError::new("severity", &other.to_string())),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AlertStatus {
@@ -137,6 +283,31 @@ pub enum AlertStatus {
     Active,
     Acknowledged,
     Resolved,
+}
+
+impl std::fmt::Display for AlertStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AlertStatus::Triggered => write!(f, "triggered"),
+            AlertStatus::Active => write!(f, "active"),
+            AlertStatus::Acknowledged => write!(f, "acknowledged"),
+            AlertStatus::Resolved => write!(f, "resolved"),
+        }
+    }
+}
+
+impl FromStr for AlertStatus {
+    type Err = ParseModelError;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "triggered" => Ok(AlertStatus::Triggered),
+            "active" => Ok(AlertStatus::Active),
+            "acknowledged" => Ok(AlertStatus::Acknowledged),
+            "resolved" => Ok(AlertStatus::Resolved),
+            other => Err(ParseModelError::new("alert status", other)),
+        }
+    }
 }
 
 //  DataDistributionManager entities

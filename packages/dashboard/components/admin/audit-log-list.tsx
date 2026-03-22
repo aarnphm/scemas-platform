@@ -4,8 +4,8 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { CopyButton } from '@/components/copy-button'
 import { Spinner } from '@/components/ui/spinner'
-import { cn } from '@/lib/utils'
 import { trpc } from '@/lib/trpc'
+import { cn } from '@/lib/utils'
 
 const ROW_HEIGHT = 36
 const DETAIL_HEIGHT = 192
@@ -27,9 +27,7 @@ export function AuditLogList() {
 
   const auditQuery = trpc.audit.list.useInfiniteQuery(
     { limit: 100 },
-    {
-      getNextPageParam: lastPage => lastPage.nextCursor,
-    },
+    { getNextPageParam: lastPage => lastPage.nextCursor },
   )
 
   const logs = (auditQuery.data?.pages.flatMap(p => p.items) ?? []) as AuditEntry[]
@@ -119,7 +117,9 @@ export function AuditLogList() {
                     {formatTimestamp(log.createdAt)}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className={cn('size-1.5 shrink-0 rounded-full', actionColor(log.action))} />
+                    <span
+                      className={cn('size-1.5 shrink-0 rounded-full', actionColor(log.action))}
+                    />
                     <span className="truncate font-medium">{log.action}</span>
                   </span>
                   <span className="truncate text-right font-mono text-muted-foreground">

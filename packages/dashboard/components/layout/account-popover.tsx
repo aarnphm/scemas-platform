@@ -5,9 +5,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { SettingsPanel } from './settings-panel'
 import { signOut } from './sign-out-action'
 
-type AccountPopoverProps = { username: string; email: string }
+type AccountPopoverProps = { username: string; email: string; role: string }
 
-export function AccountPopover({ username, email }: AccountPopoverProps) {
+export function AccountPopover({ username, email, role }: AccountPopoverProps) {
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -51,7 +51,7 @@ export function AccountPopover({ username, email }: AccountPopoverProps) {
           </div>
         </PopoverContent>
       </Popover>
-      <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} role={role} />
     </>
   )
 }

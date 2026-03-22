@@ -4,7 +4,6 @@
 
 import { useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
-import { usePageSize } from '@/lib/settings'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,8 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+import { usePageSize } from '@/lib/settings'
 import { trpc } from '@/lib/trpc'
+import { cn } from '@/lib/utils'
 
 const metricTypes = ['temperature', 'humidity', 'air_quality', 'noise_level'] as const
 
@@ -99,7 +99,10 @@ export function DevicesManager() {
       </div>
 
       {showRegister ? (
-        <form onSubmit={handleRegister} className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <form
+          onSubmit={handleRegister}
+          className="rounded-lg border border-border bg-card p-4 space-y-3"
+        >
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label htmlFor="device-id">device id</Label>
@@ -163,9 +166,7 @@ export function DevicesManager() {
                   selectedDeviceId === device.deviceId ? 'bg-accent/50' : '',
                 )}
                 onClick={() => {
-                  setSelectedDeviceId(
-                    selectedDeviceId === device.deviceId ? null : device.deviceId,
-                  )
+                  setSelectedDeviceId(selectedDeviceId === device.deviceId ? null : device.deviceId)
                 }}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -202,8 +203,8 @@ export function DevicesManager() {
                       <AlertDialogHeader>
                         <AlertDialogTitle className="text-balance">revoke device</AlertDialogTitle>
                         <AlertDialogDescription className="text-pretty">
-                          this will prevent <span className="font-mono">{device.deviceId}</span> from
-                          submitting telemetry. the device can be re-activated later.
+                          this will prevent <span className="font-mono">{device.deviceId}</span>{' '}
+                          from submitting telemetry. the device can be re-activated later.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -250,15 +251,11 @@ function DeviceDetail({
 }) {
   // derived during render, no effect
   const registeredAt =
-    typeof device.registeredAt === 'string'
-      ? new Date(device.registeredAt)
-      : device.registeredAt
+    typeof device.registeredAt === 'string' ? new Date(device.registeredAt) : device.registeredAt
 
   return (
     <div className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-4 py-3 text-sm font-medium">
-        device details
-      </div>
+      <div className="border-b border-border px-4 py-3 text-sm font-medium">device details</div>
       <div className="grid grid-cols-2 gap-x-8 gap-y-3 px-4 py-4 text-sm md:grid-cols-3">
         <div>
           <p className="text-xs text-muted-foreground">device id</p>

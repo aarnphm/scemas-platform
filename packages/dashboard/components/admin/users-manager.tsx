@@ -6,7 +6,6 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import Link from 'next/link'
 import { type FormEvent, useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
-import { usePageSize } from '@/lib/settings'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +31,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
+import { usePageSize } from '@/lib/settings'
 import { trpc } from '@/lib/trpc'
 
 const roles = ['operator', 'admin', 'viewer'] as const
@@ -240,10 +240,7 @@ function AccountRow({
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => setConfirmDelete(true)}
-            >
+            <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
               delete account
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -304,15 +301,10 @@ function ActiveSessionsPanel() {
   }
 
   const sessions = sessionsQuery.data ?? []
-  const expiringCount = sessions.filter(
-    s => s.expiry.getTime() - Date.now() < ONE_HOUR_MS,
-  ).length
+  const expiringCount = sessions.filter(s => s.expiry.getTime() - Date.now() < ONE_HOUR_MS).length
   const totalPages = Math.ceil(sessions.length / pageSize)
   const safePage = Math.min(page, Math.max(0, totalPages - 1))
-  const pageSessions = sessions.slice(
-    safePage * pageSize,
-    (safePage + 1) * pageSize,
-  )
+  const pageSessions = sessions.slice(safePage * pageSize, (safePage + 1) * pageSize)
 
   return (
     <div className="rounded-lg border border-border bg-card">
@@ -335,10 +327,7 @@ function ActiveSessionsPanel() {
         <>
           <div className={`min-h-[calc(theme(spacing.14)*${pageSize})] divide-y divide-border`}>
             {pageSessions.map(session => (
-              <div
-                className="flex h-14 items-center justify-between px-4"
-                key={session.tokenValue}
-              >
+              <div className="flex h-14 items-center justify-between px-4" key={session.tokenValue}>
                 <div className="space-y-0.5">
                   <p className="text-sm font-medium">{session.username}</p>
                   <p className="text-xs text-muted-foreground">
