@@ -43,6 +43,14 @@ pub fn create_router(state: AppState) -> Router {
             "/internal/alerting/alerts/{alert_id}/resolve",
             post(resolve_alert),
         )
+        .route(
+            "/internal/alerting/alerts/batch-resolve",
+            post(batch_resolve_alerts),
+        )
+        .route(
+            "/internal/alerting/alerts/batch-acknowledge",
+            post(batch_acknowledge_alerts),
+        )
         .route("/internal/auth/reset-password", post(reset_password))
         .route("/internal/tokens", post(create_api_token))
         .route("/internal/devices/register", post(register_device))
@@ -212,6 +220,34 @@ async fn resolve_alert(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
+async fn batch_resolve_alerts(
+    State(state): State<AppState>,
+    Json(request): Json<BatchAlertActorRequest>,
+) -> Result<Json<serde_json::Value>> {
+    let result = state
+        .alerting
+        .batch_resolve_alerts(request.ids, request.user_id)
+        .await?;
+    Ok(Json(serde_json::json!({
+        "transitioned": result.transitioned,
+        "failed": result.failed,
+    })))
+}
+
+async fn batch_acknowledge_alerts(
+    State(state): State<AppState>,
+    Json(request): Json<BatchAlertActorRequest>,
+) -> Result<Json<serde_json::Value>> {
+    let result = state
+        .alerting
+        .batch_acknowledge_alerts(request.ids, request.user_id)
+        .await?;
+    Ok(Json(serde_json::json!({
+        "transitioned": result.transitioned,
+        "failed": result.failed,
+    })))
+}
+
 /// POST /internal/telemetry/ingest
 ///
 /// pipe-and-filter entry point: receives a sensor reading,
@@ -222,6 +258,16 @@ async fn ingest_telemetry(
     headers: HeaderMap,
     Json(mut reading): Json<IndividualSensorReading>,
 ) -> Result<Json<serde_json::Value>> {
+    if !state.lifecycle.phase().is_accepting_ingestion() {
+        return Err(scemas_core::error::Error::ServiceUnavailable(format!(
+            "server is {}, not accepting telemetry",
+            state.lifecycle.phase(),
+        )));
+    }
+
+    state.lifecycle.track_request();
+    let _guard = RequestGuard(&state.lifecycle);
+
     let request_started_at = Instant::now();
     state.health.record_received();
 
@@ -302,7 +348,24 @@ async fn ingest_telemetry(
 /// GET /internal/health
 async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
     let snapshot = state.health.snapshot();
-    Json(serde_json::json!(snapshot))
+    let phase = state.lifecycle.phase();
+    let drain_stage = state.lifecycle.drain_stage();
+    Json(serde_json::json!({
+        "counters": snapshot,
+        "lifecycle": {
+            "phase": phase.to_string(),
+            "drainStage": drain_stage.to_string(),
+            "inflight": state.lifecycle.inflight_count(),
+        },
+    }))
+}
+
+struct RequestGuard<'a>(&'a scemas_core::lifecycle::LifecycleState);
+
+impl Drop for RequestGuard<'_> {
+    fn drop(&mut self) {
+        self.0.release_request();
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -341,6 +404,13 @@ struct DeleteRuleRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AlertActorRequest {
+    user_id: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BatchAlertActorRequest {
+    ids: Vec<Uuid>,
     user_id: Uuid,
 }
 

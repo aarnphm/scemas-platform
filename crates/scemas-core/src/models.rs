@@ -65,6 +65,7 @@ impl FromStr for Role {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ActiveSessionToken {
     pub token_value: String,
     pub user_id: Uuid,
@@ -73,6 +74,7 @@ pub struct ActiveSessionToken {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeviceIdentity {
     pub device_id: String,
     pub device_type: MetricType,
@@ -233,6 +235,7 @@ impl FromStr for RuleStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Alert {
     pub id: Uuid,
     pub rule_id: Uuid,
@@ -243,6 +246,9 @@ pub struct Alert {
     pub zone: String,
     pub metric_type: MetricType,
     pub created_at: DateTime<Utc>,
+    pub acknowledged_by: Option<Uuid>,
+    pub acknowledged_at: Option<DateTime<Utc>>,
+    pub resolved_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -313,6 +319,7 @@ impl FromStr for AlertStatus {
 //  DataDistributionManager entities
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AnalyticsRecord {
     pub zone: String,
     pub metric_type: MetricType,
@@ -322,6 +329,7 @@ pub struct AnalyticsRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlatformStatus {
     pub subsystem: String,
     pub status: String,
@@ -334,6 +342,7 @@ pub struct PlatformStatus {
 //  IngestionFailure (ingestion_failures table)
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IngestionFailure {
     pub id: i64,
     pub stage: String,
@@ -350,6 +359,7 @@ pub struct IngestionFailure {
 //  DataDistributionManager: hazard reports (CP-C3)
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HazardReport {
     pub id: Uuid,
     pub zone: String,
@@ -386,6 +396,7 @@ pub enum HazardReportStatus {
 //  Innovative feature: alert subscriptions
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AlertSubscription {
     pub id: Uuid,
     pub user_id: Uuid,

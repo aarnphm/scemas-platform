@@ -7,7 +7,12 @@ import { TRPCError } from '@trpc/server'
 import { eq, desc, and, ne, inArray, gte, or, lt, count } from 'drizzle-orm'
 import { z } from 'zod'
 import { expandZoneIdSet, expandZoneSensorIdSet, normalizeZoneId } from '@/lib/zones'
-import { acknowledgeAlert, resolveAlert } from '../handlers/alerts'
+import {
+  acknowledgeAlert,
+  batchAcknowledgeAlerts,
+  batchResolveAlerts,
+  resolveAlert,
+} from '../handlers/alerts'
 import { router, protectedProcedure } from '../trpc'
 
 export const alertsRouter = router({
@@ -167,22 +172,20 @@ export const alertsRouter = router({
       return { success: true as const }
     }),
 
-  // batch resolve (max 50 at a time)
+  // batch resolve (max 50 at a time, single rust round-trip)
   batchResolve: protectedProcedure
     .input(z.object({ ids: z.array(z.string().uuid()).min(1).max(50) }))
     .mutation(async ({ input, ctx }) => {
-      const results = await Promise.all(input.ids.map(id => resolveAlert(id, ctx.user.id)))
-      const failed = results.filter(r => !r.success).length
-      return { resolved: results.length - failed, failed }
+      const result = await batchResolveAlerts(input.ids, ctx.user.id)
+      return { resolved: result.transitioned, failed: result.failed }
     }),
 
-  // batch acknowledge (max 50 at a time)
+  // batch acknowledge (max 50 at a time, single rust round-trip)
   batchAcknowledge: protectedProcedure
     .input(z.object({ ids: z.array(z.string().uuid()).min(1).max(50) }))
     .mutation(async ({ input, ctx }) => {
-      const results = await Promise.all(input.ids.map(id => acknowledgeAlert(id, ctx.user.id)))
-      const failed = results.filter(r => !r.success).length
-      return { acknowledged: results.length - failed, failed }
+      const result = await batchAcknowledgeAlerts(input.ids, ctx.user.id)
+      return { acknowledged: result.transitioned, failed: result.failed }
     }),
 })
 

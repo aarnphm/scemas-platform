@@ -55,6 +55,28 @@ impl DataDistributionManager {
         }
     }
 
+    pub async fn flush_final(
+        &self,
+        total_received: u64,
+        total_accepted: u64,
+        total_rejected: u64,
+    ) -> Result<()> {
+        self.flush_ingestion_counters(total_received, total_accepted, total_rejected)
+            .await?;
+
+        let status = "shutting_down";
+        sqlx::query(
+            "INSERT INTO platform_status (subsystem, status, uptime, latency_ms, error_rate) VALUES ($1, $2, $3, 0, 0)",
+        )
+        .bind("telemetry_ingestion")
+        .bind(status)
+        .bind(self.started_at.elapsed().as_secs_f64())
+        .execute(&self.db)
+        .await?;
+
+        Ok(())
+    }
+
     async fn flush_ingestion_counters(
         &self,
         total_received: u64,

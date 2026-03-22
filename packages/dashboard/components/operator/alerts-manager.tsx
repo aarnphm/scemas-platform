@@ -209,8 +209,11 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
     }
   }, [lastItemIndex, filtered.length, hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  const isInitialLoad = alertsQuery.isLoading
-  const isRefetching = alertsQuery.isFetching && !alertsQuery.isLoading
+  // when filters change (new queryInput), dataUpdatedAt resets to 0 for the new key.
+  // show full loading state until fresh data arrives for the current filters.
+  const hasFreshData = alertsQuery.dataUpdatedAt > 0 && !alertsQuery.isLoading
+  const isInitialLoad = !hasFreshData && alertsQuery.isFetching
+  const isRefetching = hasFreshData && alertsQuery.isFetching
 
   return (
     <div className="rounded-lg border border-border bg-card">

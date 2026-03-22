@@ -335,6 +335,7 @@ AlertingManager --> AlertAndAuditLogDB
 AlertingManager --> IndividualSensorReading
 AlertingManager --> UserInformation
 AlertingManager --> ManageAlertSubscriptions
+AlertingManager --> AlertSubscriptionDB
 ManageAlertSubscriptions --> AlertSubscriptionDB
 DispatchAlertNotifications ..> AlertSubscriptionDB : reads
 
@@ -351,6 +352,8 @@ DataDistributionManager --> MonitorSCEMASPlatformStatus
 DataDistributionManager --> SCEMASPlatformStatusDB
 DataDistributionManager --> AccessManagement
 DataDistributionManager --> ReportEnvironmentalHazard
+DataDistributionManager --> UserInformation
+DataDistributionManager --> HazardReportDB
 ReportEnvironmentalHazard --> HazardReportDB
 HazardReportDB --> UserInformation
 

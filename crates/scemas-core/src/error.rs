@@ -18,6 +18,9 @@ pub enum Error {
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
 
+    #[error("service unavailable: {0}")]
+    ServiceUnavailable(String),
+
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -29,6 +32,7 @@ impl IntoResponse for Error {
             Error::NotFound(_) => StatusCode::NOT_FOUND,
             Error::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             Error::Forbidden(_) => StatusCode::FORBIDDEN,
+            Error::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             Error::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
