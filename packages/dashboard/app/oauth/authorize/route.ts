@@ -27,7 +27,10 @@ export async function GET(request: Request): Promise<Response> {
 
   if (!clientId || !redirectUri || !codeChallenge) {
     return Response.json(
-      { error: 'invalid_request', error_description: 'client_id, redirect_uri, and code_challenge are required' },
+      {
+        error: 'invalid_request',
+        error_description: 'client_id, redirect_uri, and code_challenge are required',
+      },
       { status: 400 },
     )
   }
@@ -46,12 +49,18 @@ export async function GET(request: Request): Promise<Response> {
   })
 
   if (!client) {
-    return Response.json({ error: 'invalid_client', error_description: 'unknown client_id' }, { status: 400 })
+    return Response.json(
+      { error: 'invalid_client', error_description: 'unknown client_id' },
+      { status: 400 },
+    )
   }
 
   if (!client.redirectUris.includes(redirectUri)) {
     return Response.json(
-      { error: 'invalid_request', error_description: 'redirect_uri does not match any registered URIs' },
+      {
+        error: 'invalid_request',
+        error_description: 'redirect_uri does not match any registered URIs',
+      },
       { status: 400 },
     )
   }
@@ -59,7 +68,10 @@ export async function GET(request: Request): Promise<Response> {
   const validScopes = ['read', 'write:operator', 'write:admin']
   const requestedScopes = scope.split(' ').filter(Boolean)
   if (!requestedScopes.every(s => validScopes.includes(s))) {
-    return Response.json({ error: 'invalid_scope', error_description: 'unknown scope requested' }, { status: 400 })
+    return Response.json(
+      { error: 'invalid_scope', error_description: 'unknown scope requested' },
+      { status: 400 },
+    )
   }
 
   const cookieHeader = request.headers.get('cookie')
@@ -68,13 +80,19 @@ export async function GET(request: Request): Promise<Response> {
 
   if (!token || !jwtSecret) {
     const returnTo = `/oauth/authorize?${params.toString()}`
-    return Response.redirect(new URL(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`, origin).toString(), 302)
+    return Response.redirect(
+      new URL(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`, origin).toString(),
+      302,
+    )
   }
 
   const session = await verifySessionToken(token, jwtSecret)
   if (!session) {
     const returnTo = `/oauth/authorize?${params.toString()}`
-    return Response.redirect(new URL(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`, origin).toString(), 302)
+    return Response.redirect(
+      new URL(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`, origin).toString(),
+      302,
+    )
   }
 
   const csrfToken = generateRandomToken(16)

@@ -10,8 +10,8 @@
 // draining sub-sequence (cascading):
 //   StopIngestion → DrainAPIRequests → DrainOperatorViews → StopMonitoring
 
-use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, AtomicU32, Ordering};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]

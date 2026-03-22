@@ -13,7 +13,10 @@ export async function POST(request: Request): Promise<Response> {
     const body = await request.json()
     params = new URLSearchParams(body as Record<string, string>)
   } else {
-    return oauthError('invalid_request', 'content-type must be application/x-www-form-urlencoded or application/json')
+    return oauthError(
+      'invalid_request',
+      'content-type must be application/x-www-form-urlencoded or application/json',
+    )
   }
 
   const grantType = params.get('grant_type')
@@ -26,7 +29,10 @@ export async function POST(request: Request): Promise<Response> {
     return handleRefreshToken(params)
   }
 
-  return oauthError('unsupported_grant_type', 'only authorization_code and refresh_token are supported')
+  return oauthError(
+    'unsupported_grant_type',
+    'only authorization_code and refresh_token are supported',
+  )
 }
 
 async function handleAuthorizationCode(params: URLSearchParams): Promise<Response> {
@@ -36,7 +42,10 @@ async function handleAuthorizationCode(params: URLSearchParams): Promise<Respons
   const codeVerifier = params.get('code_verifier')
 
   if (!code || !redirectUri || !clientId || !codeVerifier) {
-    return oauthError('invalid_request', 'code, redirect_uri, client_id, and code_verifier are required')
+    return oauthError(
+      'invalid_request',
+      'code, redirect_uri, client_id, and code_verifier are required',
+    )
   }
 
   const db = getDb()

@@ -25,7 +25,14 @@ export function useServerLifecycle() {
   const isShuttingDown = phase === 'shutting_down'
   const isUnreachable = phase === 'unreachable'
 
-  return { phase, drainStage, isDraining, isShuttingDown, isUnreachable, loading: lifecycle.isLoading }
+  return {
+    phase,
+    drainStage,
+    isDraining,
+    isShuttingDown,
+    isUnreachable,
+    loading: lifecycle.isLoading,
+  }
 }
 
 export function BackendStatus({ ok, loading }: { ok: boolean; loading: boolean }) {

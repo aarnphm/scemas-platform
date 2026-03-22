@@ -119,12 +119,14 @@ impl ScemasRuntime {
 
         // stage 2: drain in-flight API requests
         self.lifecycle.advance_drain(DrainStage::DrainAPIRequests);
-        tracing::info!(stage = "drain_api_requests", "waiting for in-flight requests");
+        tracing::info!(
+            stage = "drain_api_requests",
+            "waiting for in-flight requests"
+        );
         self.wait_for_inflight().await;
 
         // stage 3: drain operator views (tRPC calls from dashboard)
-        self.lifecycle
-            .advance_drain(DrainStage::DrainOperatorViews);
+        self.lifecycle.advance_drain(DrainStage::DrainOperatorViews);
         tracing::info!(
             stage = "drain_operator_views",
             "waiting for operator requests"

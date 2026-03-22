@@ -66,7 +66,10 @@ export async function batchResolveAlerts(ids: string[], userId: string): Promise
   return parsed.success ? parsed.data : { transitioned: 0, failed: ids.length }
 }
 
-export async function batchAcknowledgeAlerts(ids: string[], userId: string): Promise<BatchAlertResult> {
+export async function batchAcknowledgeAlerts(
+  ids: string[],
+  userId: string,
+): Promise<BatchAlertResult> {
   const { data, status } = await callRustEndpoint('/internal/alerting/alerts/batch-acknowledge', {
     method: 'POST',
     body: JSON.stringify({ ids, userId }),

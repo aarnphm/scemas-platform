@@ -1,13 +1,16 @@
 import { oauthClients } from '@scemas/db/schema'
-import { generateRandomToken } from '@/server/oauth'
 import { getDb } from '@/server/cached'
+import { generateRandomToken } from '@/server/oauth'
 
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>
   try {
     body = await request.json()
   } catch {
-    return Response.json({ error: 'invalid_request', error_description: 'invalid JSON body' }, { status: 400 })
+    return Response.json(
+      { error: 'invalid_request', error_description: 'invalid JSON body' },
+      { status: 400 },
+    )
   }
 
   const clientName = body.client_name
@@ -22,9 +25,16 @@ export async function POST(request: Request): Promise<Response> {
     )
   }
 
-  if (!Array.isArray(redirectUris) || redirectUris.length === 0 || !redirectUris.every(u => typeof u === 'string')) {
+  if (
+    !Array.isArray(redirectUris) ||
+    redirectUris.length === 0 ||
+    !redirectUris.every(u => typeof u === 'string')
+  ) {
     return Response.json(
-      { error: 'invalid_client_metadata', error_description: 'redirect_uris must be a non-empty array of strings' },
+      {
+        error: 'invalid_client_metadata',
+        error_description: 'redirect_uris must be a non-empty array of strings',
+      },
       { status: 400 },
     )
   }
@@ -42,7 +52,10 @@ export async function POST(request: Request): Promise<Response> {
 
   if (!Array.isArray(grantTypes) || !grantTypes.every(g => typeof g === 'string')) {
     return Response.json(
-      { error: 'invalid_client_metadata', error_description: 'grant_types must be an array of strings' },
+      {
+        error: 'invalid_client_metadata',
+        error_description: 'grant_types must be an array of strings',
+      },
       { status: 400 },
     )
   }
@@ -57,13 +70,15 @@ export async function POST(request: Request): Promise<Response> {
   const clientId = generateRandomToken(16)
   const db = getDb()
 
-  await db.insert(oauthClients).values({
-    clientId,
-    clientName,
-    redirectUris: redirectUris as string[],
-    grantTypes: grantTypes as string[],
-    scope,
-  })
+  await db
+    .insert(oauthClients)
+    .values({
+      clientId,
+      clientName,
+      redirectUris: redirectUris as string[],
+      grantTypes: grantTypes as string[],
+      scope,
+    })
 
   return Response.json(
     {
