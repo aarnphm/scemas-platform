@@ -12,9 +12,9 @@ import {
 import { desc, eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { normalizeZoneId } from '@/lib/zones'
+import { hasScope } from './api-tokens'
 import { getDb, getManager } from './cached'
 import { acknowledgeAlert } from './handlers/alerts'
-import { hasScope } from './api-tokens'
 
 export type McpUserContext = { accountId: string; scopes: string[] }
 
@@ -128,16 +128,17 @@ export function createMcpServer(ctx?: McpUserContext) {
     'acknowledge_alert',
     {
       description: 'acknowledge an environmental alert. requires write:operator scope.',
-      inputSchema: schema({
-        alertId: z.uuid().describe('alert UUID to acknowledge'),
-      }),
+      inputSchema: schema({ alertId: z.uuid().describe('alert UUID to acknowledge') }),
     },
     async ({ alertId }) => {
       if (!ctx) {
         return { content: [{ type: 'text', text: 'authentication required' }], isError: true }
       }
       if (!hasScope(ctx.scopes, 'write:operator')) {
-        return { content: [{ type: 'text', text: 'insufficient scope: write:operator required' }], isError: true }
+        return {
+          content: [{ type: 'text', text: 'insufficient scope: write:operator required' }],
+          isError: true,
+        }
       }
       const result = await acknowledgeAlert(alertId, ctx.accountId)
       if (!result.success) {

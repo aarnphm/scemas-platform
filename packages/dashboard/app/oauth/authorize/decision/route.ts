@@ -20,18 +20,27 @@ export async function POST(request: Request): Promise<Response> {
   const cookieHeader = request.headers.get('cookie')
   const csrfCookie = getCookieValue(cookieHeader, 'oauth_csrf')
   if (!csrfCookie || csrfCookie !== csrf) {
-    return Response.json({ error: 'invalid_request', error_description: 'CSRF validation failed' }, { status: 403 })
+    return Response.json(
+      { error: 'invalid_request', error_description: 'CSRF validation failed' },
+      { status: 403 },
+    )
   }
 
   const sessionToken = getCookieValue(cookieHeader, SESSION_COOKIE_NAME)
   const jwtSecret = process.env.JWT_SECRET
   if (!sessionToken || !jwtSecret) {
-    return Response.json({ error: 'access_denied', error_description: 'not authenticated' }, { status: 401 })
+    return Response.json(
+      { error: 'access_denied', error_description: 'not authenticated' },
+      { status: 401 },
+    )
   }
 
   const session = await verifySessionToken(sessionToken, jwtSecret)
   if (!session) {
-    return Response.json({ error: 'access_denied', error_description: 'invalid session' }, { status: 401 })
+    return Response.json(
+      { error: 'access_denied', error_description: 'invalid session' },
+      { status: 401 },
+    )
   }
 
   const redirect = new URL(redirectUri)
@@ -50,15 +59,17 @@ export async function POST(request: Request): Promise<Response> {
   const codeHash = await hashToken(code)
 
   const db = getDb()
-  await db.insert(oauthCodes).values({
-    codeHash,
-    clientId,
-    accountId: session.sub,
-    redirectUri,
-    scope: scope || 'read',
-    codeChallenge,
-    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-  })
+  await db
+    .insert(oauthCodes)
+    .values({
+      codeHash,
+      clientId,
+      accountId: session.sub,
+      redirectUri,
+      scope: scope || 'read',
+      codeChallenge,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    })
 
   redirect.searchParams.set('code', code)
   if (state) redirect.searchParams.set('state', state)

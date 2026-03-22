@@ -22,6 +22,14 @@ skinparam state {
   BorderColor<<monitor>> #27AE60
   FontColor<<monitor>> #1E8449
 
+  BackgroundColor<<drain>> #FDF2E9
+  BorderColor<<drain>> #D4AC0D
+  FontColor<<drain>> #7D6608
+
+  BackgroundColor<<shutdown>> #F5B7B1
+  BorderColor<<shutdown>> #E74C3C
+  FontColor<<shutdown>> #922B21
+
   BackgroundColor<<error>> #FDEBD0
   BorderColor<<error>> #E67E22
   FontColor<<error>> #7E5109
@@ -86,6 +94,30 @@ state "Distributing" as DIST <<distribute>> {
   AGG --> MON : platform metrics available
 }
 
+state "Draining" as DRAIN <<drain>> {
+  state "StopIngestion" as SI <<drain>>
+  state "DrainAPIRequests" as DAR <<drain>>
+  state "DrainOperatorViews" as DOV <<drain>>
+  state "StopMonitoring" as SM <<drain>>
+  SI --> DAR : ingestion stopped
+  DAR --> DOV : API requests drained
+  DOV --> SM : operator views drained
+  note right of SI
+    reject new /internal/telemetry/ingest
+    returns 503
+  end note
+  note right of SM
+    flush ingestion counters
+    write final platform_status
+  end note
+}
+
+state "ShuttingDown" as SHUT <<shutdown>> {
+  state "CloseDBPool" as CDB <<shutdown>>
+  state "ReleaseResources" as RR <<shutdown>>
+  CDB --> RR : pool closed
+}
+
 state "Error" as ERR <<error>> {
   state "LogFailure" as LF <<error>>
   state "NotifyAdmin" as NA <<error>>
@@ -108,8 +140,13 @@ AUTH --> ERR : authentication failed
 
 DIST --> AUTH : session expired
 DIST --> ERR : distribution failure
+DIST --> DRAIN : SIGTERM / SIGINT received
+
+DRAIN --> SHUT : drain cascade complete
+SHUT --> [*] : resources released
 
 ERR --> INIT : recovery: reinitialize
+ERR --> DRAIN : graceful degradation
 ERR --> [*] : unrecoverable failure
 
 RLC --> ERR : rate limit exceeded

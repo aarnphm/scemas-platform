@@ -405,6 +405,8 @@ AlertingManager --> IndividualSensorReading
 AlertingManager --> UserInformation
 AlertingManager --> ManageAlertSubscriptions
 AlertingManager --> AlertSubscriptionDB
+ManageAlertSubscriptions --> AlertSubscriptionDB
+DispatchAlertNotifications ..> AlertSubscriptionDB : reads
 
 ' ─────────────────────────────────────────
 ' DATA DISTRIBUTION RELATIONSHIPS
@@ -421,6 +423,8 @@ DataDistributionManager --> AccessManagement
 DataDistributionManager --> ReportEnvironmentalHazard
 DataDistributionManager --> UserInformation
 DataDistributionManager --> HazardReportDB
+ReportEnvironmentalHazard --> HazardReportDB
+HazardReportDB --> UserInformation
 
 ' ─────────────────────────────────────────
 ' CROSS-CONTROLLER SHARED

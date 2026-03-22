@@ -281,9 +281,7 @@ export const oauthClients = pgTable(
     clientUri: text('client_uri'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  table => ({
-    clientIdIdx: uniqueIndex('oauth_clients_client_id_idx').on(table.clientId),
-  }),
+  table => ({ clientIdIdx: uniqueIndex('oauth_clients_client_id_idx').on(table.clientId) }),
 )
 
 export const oauthCodes = pgTable(
@@ -302,9 +300,7 @@ export const oauthCodes = pgTable(
     usedAt: timestamp('used_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  table => ({
-    codeHashIdx: uniqueIndex('oauth_codes_code_hash_idx').on(table.codeHash),
-  }),
+  table => ({ codeHashIdx: uniqueIndex('oauth_codes_code_hash_idx').on(table.codeHash) }),
 )
 
 export const oauthTokens = pgTable(

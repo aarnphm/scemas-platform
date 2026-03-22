@@ -43,7 +43,11 @@ export default async function OAuthConsentPage({
         <input type="hidden" name="redirect_uri" value={(params.redirect_uri as string) ?? ''} />
         <input type="hidden" name="scope" value={scope} />
         <input type="hidden" name="state" value={(params.state as string) ?? ''} />
-        <input type="hidden" name="code_challenge" value={(params.code_challenge as string) ?? ''} />
+        <input
+          type="hidden"
+          name="code_challenge"
+          value={(params.code_challenge as string) ?? ''}
+        />
         <input type="hidden" name="csrf" value={(params.csrf as string) ?? ''} />
 
         <Button type="submit" name="decision" value="deny" variant="outline" className="flex-1">
