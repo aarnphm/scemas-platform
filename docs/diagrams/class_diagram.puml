@@ -1,7 +1,17 @@
 @startuml class_diagram
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 80
+skinparam classAttributeIconSize 0
+skinparam backgroundColor White
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  ArrowColor Black
+}
 
 ' ─────────────────────────────────────────
-' ABSTRACT CLASSES
+' ABSTRACT CLASSES (top row)
 ' ─────────────────────────────────────────
 
 abstract class TelemetryManagement <<Abstract>> {
@@ -67,15 +77,6 @@ class DataDistributionManager {
   + subscribe(endpoint : Endpoint) : void
   + unsubscribe(endpoint : Endpoint) : void
 }
-
-' ─────────────────────────────────────────
-' REALIZATION
-' ─────────────────────────────────────────
-
-TelemetryManager ..|> TelemetryManagement
-AccessManager ..|> AccessManagement
-AlertingManager ..|> AlertingManagement
-DataDistributionManager ..|> DataDistributionManagement
 
 ' ─────────────────────────────────────────
 ' BOUNDARIES - TELEMETRY
@@ -295,6 +296,74 @@ class HazardReportDB {
   + store(report : HazardReport) : void
   + updateStatus(reportId : String, status : String) : void
 }
+
+' ─────────────────────────────────────────
+' LAYOUT: force abstract classes in a row
+' ─────────────────────────────────────────
+
+TelemetryManagement -[hidden]right- AccessManagement
+AccessManagement -[hidden]right- AlertingManagement
+AlertingManagement -[hidden]right- DataDistributionManagement
+
+' force controllers below abstract classes
+TelemetryManagement -[hidden]down- TelemetryManager
+AccessManagement -[hidden]down- AccessManager
+AlertingManagement -[hidden]down- AlertingManager
+DataDistributionManagement -[hidden]down- DataDistributionManager
+
+' force controllers in a row
+TelemetryManager -[hidden]right- AccessManager
+AccessManager -[hidden]right- AlertingManager
+AlertingManager -[hidden]right- DataDistributionManager
+
+' force telemetry boundaries below TelemetryManager
+TelemetryManager -[hidden]down- IngestSensorStreams
+IngestSensorStreams -[hidden]right- ValidateTelemetryData
+ValidateTelemetryData -[hidden]right- MonitorIngestionHealth
+
+' force access boundaries below AccessManager
+AccessManager -[hidden]down- SignupForAccount
+SignupForAccount -[hidden]right- LoginToSCEMAS
+LoginToSCEMAS -[hidden]right- AuthorizeIoTDevices
+AuthorizeIoTDevices -[hidden]right- ModifyAccountDetails
+ModifyAccountDetails -[hidden]right- MonitorAccessStatus
+MonitorAccessStatus -[hidden]right- ManageSecurityPermissions
+
+' force alerting boundaries below AlertingManager
+AlertingManager -[hidden]down- DefineThresholdRules
+DefineThresholdRules -[hidden]right- HandleActiveAlerts
+HandleActiveAlerts -[hidden]right- DispatchAlertNotifications
+DispatchAlertNotifications -[hidden]right- ManageAlertSubscriptions
+
+' force data distribution boundaries below DataDistributionManager
+DataDistributionManager -[hidden]down- FilterAggregatedData
+FilterAggregatedData -[hidden]right- ProvidePublicAPI
+ProvidePublicAPI -[hidden]right- VisualizeCityMetrics
+VisualizeCityMetrics -[hidden]right- MonitorSCEMASPlatformStatus
+MonitorSCEMASPlatformStatus -[hidden]right- ReportEnvironmentalHazard
+
+' force entities at the bottom
+IndividualSensorReading -[hidden]right- TimeSeriesTelemetryDB
+TimeSeriesTelemetryDB -[hidden]right- AccountDB
+AccountDB -[hidden]right- UserInformation
+UserInformation -[hidden]right- ActiveSessionToken
+ActiveSessionToken -[hidden]right- DeviceIdentityRegistry
+DeviceIdentityRegistry -[hidden]right- ThresholdRulebook
+ThresholdRulebook -[hidden]right- AlertAndAuditLogDB
+AlertAndAuditLogDB -[hidden]right- AnalyticsDB
+AnalyticsDB -[hidden]right- SCEMASPlatformStatusDB
+SCEMASPlatformStatusDB -[hidden]right- ApiTokenRegistry
+ApiTokenRegistry -[hidden]right- AlertSubscriptionDB
+AlertSubscriptionDB -[hidden]right- HazardReportDB
+
+' ─────────────────────────────────────────
+' REALIZATION
+' ─────────────────────────────────────────
+
+TelemetryManager ..|> TelemetryManagement
+AccessManager ..|> AccessManagement
+AlertingManager ..|> AlertingManagement
+DataDistributionManager ..|> DataDistributionManagement
 
 ' ─────────────────────────────────────────
 ' TELEMETRY RELATIONSHIPS
