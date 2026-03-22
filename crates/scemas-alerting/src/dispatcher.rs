@@ -56,6 +56,9 @@ mod tests {
             zone: "downtown_core".into(),
             metric_type: MetricType::Temperature,
             created_at: chrono::Utc::now(),
+            acknowledged_by: None,
+            acknowledged_at: None,
+            resolved_at: None,
         }
     }
 

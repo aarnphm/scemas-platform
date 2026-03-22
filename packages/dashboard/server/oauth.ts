@@ -35,13 +35,7 @@ export async function validateOAuthToken(
 
   const row = await db.query.oauthTokens.findFirst({
     where: eq(oauthTokens.accessTokenHash, tokenHash),
-    columns: {
-      id: true,
-      accountId: true,
-      scope: true,
-      accessExpiresAt: true,
-      revokedAt: true,
-    },
+    columns: { id: true, accountId: true, scope: true, accessExpiresAt: true, revokedAt: true },
   })
 
   if (!row) {
@@ -72,15 +66,17 @@ export async function createTokenPair(
   ])
 
   const now = new Date()
-  await db.insert(oauthTokens).values({
-    accessTokenHash: accessHash,
-    refreshTokenHash: refreshHash,
-    clientId: params.clientId,
-    accountId: params.accountId,
-    scope: params.scope,
-    accessExpiresAt: new Date(now.getTime() + TOKEN_EXPIRY.access * 1000),
-    refreshExpiresAt: new Date(now.getTime() + TOKEN_EXPIRY.refresh * 1000),
-  })
+  await db
+    .insert(oauthTokens)
+    .values({
+      accessTokenHash: accessHash,
+      refreshTokenHash: refreshHash,
+      clientId: params.clientId,
+      accountId: params.accountId,
+      scope: params.scope,
+      accessExpiresAt: new Date(now.getTime() + TOKEN_EXPIRY.access * 1000),
+      refreshExpiresAt: new Date(now.getTime() + TOKEN_EXPIRY.refresh * 1000),
+    })
 
   return { accessToken, refreshToken, expiresIn: TOKEN_EXPIRY.access }
 }
@@ -134,10 +130,7 @@ export async function refreshTokenPair(
   return { ok: true, ...pair, scope: row.scope }
 }
 
-export async function revokeByTokenHash(
-  db: Database,
-  rawToken: string,
-): Promise<void> {
+export async function revokeByTokenHash(db: Database, rawToken: string): Promise<void> {
   const tokenHash = await hashToken(rawToken)
 
   const byAccess = await db.query.oauthTokens.findFirst({
@@ -146,7 +139,10 @@ export async function revokeByTokenHash(
   })
 
   if (byAccess && !byAccess.revokedAt) {
-    await db.update(oauthTokens).set({ revokedAt: new Date() }).where(eq(oauthTokens.id, byAccess.id))
+    await db
+      .update(oauthTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(oauthTokens.id, byAccess.id))
     return
   }
 
@@ -156,7 +152,10 @@ export async function revokeByTokenHash(
   })
 
   if (byRefresh && !byRefresh.revokedAt) {
-    await db.update(oauthTokens).set({ revokedAt: new Date() }).where(eq(oauthTokens.id, byRefresh.id))
+    await db
+      .update(oauthTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(oauthTokens.id, byRefresh.id))
   }
 }
 

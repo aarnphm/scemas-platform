@@ -68,7 +68,10 @@ function sortAlerts(alerts: Alert[], mode: SortMode): Alert[] {
 // ---------------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- react-query InfiniteData is generic, helpers operate on any page shape
-type AnyInfiniteData = { pages: Array<{ items: Array<{ id: string; status: string; [k: string]: any }>; [k: string]: any }>; pageParams: any[] }
+type AnyInfiniteData = {
+  pages: Array<{ items: Array<{ id: string; status: string; [k: string]: any }>; [k: string]: any }>
+  pageParams: any[]
+}
 
 function patchStatus(old: AnyInfiniteData | undefined, id: string, status: string) {
   if (!old) return old
@@ -85,10 +88,7 @@ function removeItem(old: AnyInfiniteData | undefined, id: string) {
   if (!old) return old
   return {
     ...old,
-    pages: old.pages.map(page => ({
-      ...page,
-      items: page.items.filter(a => a.id !== id),
-    })),
+    pages: old.pages.map(page => ({ ...page, items: page.items.filter(a => a.id !== id) })),
   }
 }
 
@@ -96,10 +96,7 @@ function removeItems(old: AnyInfiniteData | undefined, ids: Set<string>) {
   if (!old) return old
   return {
     ...old,
-    pages: old.pages.map(page => ({
-      ...page,
-      items: page.items.filter(a => !ids.has(a.id)),
-    })),
+    pages: old.pages.map(page => ({ ...page, items: page.items.filter(a => !ids.has(a.id)) })),
   }
 }
 
@@ -138,9 +135,15 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
         utils.alerts.list.invalidate()
         utils.alerts.count.invalidate()
       } else if (action === 'ack') {
-        utils.alerts.list.setInfiniteData(queryInput, old => patchStatus(old as AnyInfiniteData, id, 'acknowledged') as typeof old)
+        utils.alerts.list.setInfiniteData(
+          queryInput,
+          old => patchStatus(old as AnyInfiniteData, id, 'acknowledged') as typeof old,
+        )
       } else {
-        utils.alerts.list.setInfiniteData(queryInput, old => removeItem(old as AnyInfiniteData, id) as typeof old)
+        utils.alerts.list.setInfiniteData(
+          queryInput,
+          old => removeItem(old as AnyInfiniteData, id) as typeof old,
+        )
         utils.alerts.count.invalidate()
       }
     },
@@ -165,7 +168,10 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
         utils.alerts.list.invalidate()
       } else {
         const idSet = new Set(ids)
-        utils.alerts.list.setInfiniteData(queryInput, old => removeItems(old as AnyInfiniteData, idSet) as typeof old)
+        utils.alerts.list.setInfiniteData(
+          queryInput,
+          old => removeItems(old as AnyInfiniteData, idSet) as typeof old,
+        )
       }
       utils.alerts.count.invalidate()
     },
@@ -209,8 +215,11 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
     }
   }, [lastItemIndex, filtered.length, hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  const isInitialLoad = alertsQuery.isLoading
-  const isRefetching = alertsQuery.isFetching && !alertsQuery.isLoading
+  // when filters change (new queryInput), dataUpdatedAt resets to 0 for the new key.
+  // show full loading state until fresh data arrives for the current filters.
+  const hasFreshData = alertsQuery.dataUpdatedAt > 0 && !alertsQuery.isLoading
+  const isInitialLoad = !hasFreshData && alertsQuery.isFetching
+  const isRefetching = hasFreshData && alertsQuery.isFetching
 
   return (
     <div className="rounded-lg border border-border bg-card">
@@ -326,7 +335,9 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
             {live ? (
               <>
                 <Spinner />
-                <p className="text-xs text-muted-foreground">events will appear here as they arrive</p>
+                <p className="text-xs text-muted-foreground">
+                  events will appear here as they arrive
+                </p>
               </>
             ) : (
               <p className="text-sm text-muted-foreground text-pretty">
@@ -439,12 +450,7 @@ function AlertActions({
           ack'd
         </span>
       ) : (
-        <Button
-          disabled={isAckLoading}
-          onClick={onAck}
-          size="sm"
-          variant="outline"
-        >
+        <Button disabled={isAckLoading} onClick={onAck} size="sm" variant="outline">
           {isAckLoading ? <Spinner /> : 'ack'}
         </Button>
       )}

@@ -22,6 +22,11 @@ use crate::dispatcher;
 use crate::evaluator;
 use crate::lifecycle;
 
+pub struct BatchTransitionResult {
+    pub transitioned: usize,
+    pub failed: usize,
+}
+
 pub struct AlertingManager {
     db: PgPool,
     blackboard: RwLock<Blackboard>,
@@ -246,6 +251,29 @@ impl AlertingManager {
             .await
     }
 
+    pub async fn batch_resolve_alerts(
+        &self,
+        alert_ids: Vec<Uuid>,
+        user_id: Uuid,
+    ) -> Result<BatchTransitionResult> {
+        self.batch_transition(alert_ids, AlertStatus::Resolved, user_id, "alert.resolved")
+            .await
+    }
+
+    pub async fn batch_acknowledge_alerts(
+        &self,
+        alert_ids: Vec<Uuid>,
+        user_id: Uuid,
+    ) -> Result<BatchTransitionResult> {
+        self.batch_transition(
+            alert_ids,
+            AlertStatus::Acknowledged,
+            user_id,
+            "alert.acknowledged",
+        )
+        .await
+    }
+
     async fn persist_alert(&self, alert: &Alert) -> Result<()> {
         sqlx::query(
             "INSERT INTO alerts (id, rule_id, sensor_id, severity, status, triggered_value, zone, metric_type, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
@@ -332,6 +360,88 @@ impl AlertingManager {
         .await?;
 
         Ok(())
+    }
+
+    async fn batch_transition(
+        &self,
+        alert_ids: Vec<Uuid>,
+        next_status: AlertStatus,
+        user_id: Uuid,
+        audit_action: &str,
+    ) -> Result<BatchTransitionResult> {
+        if alert_ids.is_empty() {
+            return Ok(BatchTransitionResult {
+                transitioned: 0,
+                failed: 0,
+            });
+        }
+
+        let valid_source_statuses: Vec<&str> = match next_status {
+            AlertStatus::Resolved => vec!["active", "acknowledged"],
+            AlertStatus::Acknowledged => vec!["active"],
+            _ => {
+                return Err(Error::Validation(format!(
+                    "batch transition to {} is not supported",
+                    alert_status_label(&next_status),
+                )));
+            }
+        };
+
+        let total = alert_ids.len();
+        let now = Utc::now();
+        let mut tx = self.db.begin().await?;
+
+        let transitioned = sqlx::query_scalar::<_, i64>(
+            "WITH eligible AS (
+                SELECT id FROM alerts
+                WHERE id = ANY($1) AND status = ANY($2)
+            )
+            UPDATE alerts SET
+                status = $3,
+                acknowledged_by = COALESCE(acknowledged_by, CASE WHEN $3 = 'acknowledged' THEN $4 ELSE NULL END),
+                acknowledged_at = COALESCE(acknowledged_at, CASE WHEN $3 = 'acknowledged' THEN $5 ELSE NULL END),
+                resolved_at = CASE WHEN $3 = 'resolved' THEN $5 ELSE resolved_at END
+            FROM eligible
+            WHERE alerts.id = eligible.id
+            RETURNING alerts.id",
+        )
+        .bind(&alert_ids)
+        .bind(&valid_source_statuses)
+        .bind(alert_status_label(&next_status))
+        .bind(user_id)
+        .bind(now)
+        .fetch_all(&mut *tx)
+        .await?
+        .len();
+
+        if transitioned > 0 {
+            sqlx::query(
+                "INSERT INTO audit_logs (user_id, action, details)
+                SELECT $1, $2, jsonb_build_object('alertId', id::text, 'status', $3, 'batch', true)
+                FROM alerts WHERE id = ANY($4) AND status = $3",
+            )
+            .bind(user_id)
+            .bind(audit_action)
+            .bind(alert_status_label(&next_status))
+            .bind(&alert_ids)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+
+        let mut blackboard = self.blackboard.write().await;
+        for alert_id in &alert_ids {
+            if let Some(mut alert) = blackboard.get_alert(alert_id).cloned() {
+                alert.status = next_status.clone();
+                blackboard.post_alert(alert);
+            }
+        }
+
+        Ok(BatchTransitionResult {
+            transitioned,
+            failed: total - transitioned,
+        })
     }
 
     async fn load_subscriptions(&self) -> Result<Vec<AlertSubscription>> {

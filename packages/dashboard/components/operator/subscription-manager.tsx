@@ -86,7 +86,9 @@ export function SubscriptionManager({ availableZones, onSaved }: SubscriptionMan
           {metricTypes.map(metricType => (
             <label className="flex items-center gap-2 text-sm" key={metricType}>
               <input
-                defaultChecked={selectedMetricTypes.length === 0 || selectedMetricTypes.includes(metricType)}
+                defaultChecked={
+                  selectedMetricTypes.length === 0 || selectedMetricTypes.includes(metricType)
+                }
                 name="metricTypes"
                 type="checkbox"
                 value={metricType}

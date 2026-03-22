@@ -1,9 +1,9 @@
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import { createMcpServer } from '@/server/mcp-server'
-import { validateToken } from '@/server/api-tokens'
-import { validateOAuthToken } from '@/server/oauth'
-import { getDb } from '@/server/cached'
 import { getOrigin } from '@/lib/request-origin'
+import { validateToken } from '@/server/api-tokens'
+import { getDb } from '@/server/cached'
+import { createMcpServer } from '@/server/mcp-server'
+import { validateOAuthToken } from '@/server/oauth'
 
 const TOKEN_PREFIX = 'sk-scemas-'
 
@@ -24,13 +24,15 @@ async function handle(request: Request): Promise<Response> {
   const authHeader = request.headers.get('authorization')
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return corsify(new Response(JSON.stringify({ error: 'unauthorized' }), {
-      status: 401,
-      headers: {
-        'content-type': 'application/json',
-        'www-authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
-      },
-    }))
+    return corsify(
+      new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401,
+        headers: {
+          'content-type': 'application/json',
+          'www-authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+        },
+      }),
+    )
   }
 
   const bearerToken = authHeader.slice(7)
@@ -42,26 +44,30 @@ async function handle(request: Request): Promise<Response> {
   if (bearerToken.startsWith(TOKEN_PREFIX)) {
     const result = await validateToken(db, authHeader)
     if (!result.valid) {
-      return corsify(new Response(JSON.stringify({ error: result.error }), {
-        status: result.status,
-        headers: {
-          'content-type': 'application/json',
-          'www-authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
-        },
-      }))
+      return corsify(
+        new Response(JSON.stringify({ error: result.error }), {
+          status: result.status,
+          headers: {
+            'content-type': 'application/json',
+            'www-authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+          },
+        }),
+      )
     }
     accountId = result.accountId
     scopes = result.scopes
   } else {
     const result = await validateOAuthToken(db, bearerToken)
     if (!result.valid) {
-      return corsify(new Response(JSON.stringify({ error: result.error }), {
-        status: result.status,
-        headers: {
-          'content-type': 'application/json',
-          'www-authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
-        },
-      }))
+      return corsify(
+        new Response(JSON.stringify({ error: result.error }), {
+          status: result.status,
+          headers: {
+            'content-type': 'application/json',
+            'www-authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+          },
+        }),
+      )
     }
     accountId = result.accountId
     scopes = result.scopes

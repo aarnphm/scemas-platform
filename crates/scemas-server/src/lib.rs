@@ -5,6 +5,7 @@ pub mod state;
 
 use scemas_alerting::controller::AlertingManager;
 use scemas_core::config::Config;
+use scemas_core::lifecycle::{DrainStage, LifecycleState, ServerPhase};
 use scemas_telemetry::controller::TelemetryManager;
 use scemas_telemetry::health::IngestionHealth;
 use sqlx::PgPool;
@@ -34,13 +35,17 @@ pub struct ScemasRuntime {
     pub telemetry: Arc<TelemetryManager>,
     pub alerting: Arc<AlertingManager>,
     pub health: Arc<IngestionHealth>,
+    pub lifecycle: LifecycleState,
 }
 
 impl ScemasRuntime {
     pub async fn from_config(config: &Config) -> Result<Self, RuntimeError> {
-        let pool = PgPool::connect(&config.database_url).await?;
+        let lifecycle = LifecycleState::new();
 
+        let pool = PgPool::connect(&config.database_url).await?;
         tracing::info!("connected to database");
+
+        lifecycle.set_phase(ServerPhase::Authenticating);
 
         let access = AccessManager::new(
             pool.clone(),
@@ -70,6 +75,8 @@ impl ScemasRuntime {
             "restored ingestion counters"
         );
 
+        lifecycle.set_phase(ServerPhase::Distributing);
+
         Ok(Self {
             pool,
             access: Arc::new(access),
@@ -81,6 +88,7 @@ impl ScemasRuntime {
                 base_accepted,
                 base_rejected,
             )),
+            lifecycle,
         })
     }
 
@@ -91,6 +99,85 @@ impl ScemasRuntime {
             telemetry: Arc::clone(&self.telemetry),
             alerting: Arc::clone(&self.alerting),
             health: Arc::clone(&self.health),
+            lifecycle: self.lifecycle.clone(),
+        }
+    }
+
+    /// cascading drain sequence:
+    /// StopIngestion → DrainAPIRequests → DrainOperatorViews → StopMonitoring
+    ///
+    /// each stage waits for the previous subsystem to quiesce before
+    /// proceeding. the cascade mirrors the data flow: ingestion is upstream,
+    /// API/operator are midstream consumers, monitoring is the last to go.
+    pub async fn drain(&self) {
+        tracing::info!("starting graceful drain cascade");
+        self.lifecycle.set_phase(ServerPhase::Draining);
+
+        // stage 1: stop accepting new sensor readings
+        self.lifecycle.advance_drain(DrainStage::StopIngestion);
+        tracing::info!(stage = "stop_ingestion", "rejecting new telemetry ingest");
+
+        // stage 2: drain in-flight API requests
+        self.lifecycle.advance_drain(DrainStage::DrainAPIRequests);
+        tracing::info!(
+            stage = "drain_api_requests",
+            "waiting for in-flight requests"
+        );
+        self.wait_for_inflight().await;
+
+        // stage 3: drain operator views (tRPC calls from dashboard)
+        self.lifecycle.advance_drain(DrainStage::DrainOperatorViews);
+        tracing::info!(
+            stage = "drain_operator_views",
+            "waiting for operator requests"
+        );
+        self.wait_for_inflight().await;
+
+        // stage 4: stop monitoring, flush final state
+        self.lifecycle.advance_drain(DrainStage::StopMonitoring);
+        tracing::info!(stage = "stop_monitoring", "flushing final health snapshot");
+
+        let snapshot = self.health.snapshot();
+        if let Err(error) = self
+            .distribution
+            .flush_final(
+                snapshot.total_received,
+                snapshot.total_accepted,
+                snapshot.total_rejected,
+            )
+            .await
+        {
+            tracing::warn!("failed to flush final counters during drain: {error}");
+        }
+
+        self.lifecycle.advance_drain(DrainStage::Complete);
+        self.lifecycle.set_phase(ServerPhase::ShuttingDown);
+        tracing::info!("drain cascade complete, shutting down");
+
+        self.pool.close().await;
+        self.lifecycle.set_phase(ServerPhase::Stopped);
+        tracing::info!("database pool closed, server stopped");
+    }
+
+    async fn wait_for_inflight(&self) {
+        let mut polls = 0;
+        while self.lifecycle.inflight_count() > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            polls += 1;
+            if polls % 100 == 0 {
+                tracing::info!(
+                    inflight = self.lifecycle.inflight_count(),
+                    "still waiting for in-flight requests"
+                );
+            }
+            // hard timeout: 30 seconds
+            if polls > 600 {
+                tracing::warn!(
+                    inflight = self.lifecycle.inflight_count(),
+                    "drain timeout reached, forcing shutdown"
+                );
+                break;
+            }
         }
     }
 }

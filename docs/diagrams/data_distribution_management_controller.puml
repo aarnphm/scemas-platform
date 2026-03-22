@@ -1,35 +1,38 @@
 @startuml data_distribution_management_controller
 hide empty description
-skinparam stateFontSize 24
-skinparam stateArrowFontSize 22
-skinparam state {
-  BackgroundColor<<init>>     #F2F4F4
-  BorderColor<<init>>         #7F8C8D
-  FontColor<<init>>           #2C3E50
 
-  BackgroundColor<<auth>>     #FCEAE8
-  BorderColor<<auth>>         #EA9A97
-  FontColor<<auth>>           #6B3A38
+skinparam state {
+  BackgroundColor<<init>>       #F2F4F4
+  BorderColor<<init>>           #7F8C8D
+  FontColor<<init>>             #2C3E50
+
+  BackgroundColor<<auth>>       #FCEAE8
+  BorderColor<<auth>>           #ea9a97
+  FontColor<<auth>>             #6B3A38
 
   BackgroundColor<<distribute>> #EDE8F5
-  BorderColor<<distribute>>   #A692C3
-  FontColor<<distribute>>     #4A3767
+  BorderColor<<distribute>>     #a692c3
+  FontColor<<distribute>>       #4A3767
 
-  BackgroundColor<<ingest>>   #D6EAF8
-  BorderColor<<ingest>>       #2980B9
-  FontColor<<ingest>>         #1A5276
+  BackgroundColor<<ingest>>     #D6EAF8
+  BorderColor<<ingest>>         #2980B9
+  FontColor<<ingest>>           #1A5276
 
-  BackgroundColor<<monitor>>  #D5F5E3
-  BorderColor<<monitor>>      #27AE60
-  FontColor<<monitor>>        #1E8449
+  BackgroundColor<<monitor>>    #D5F5E3
+  BorderColor<<monitor>>        #27AE60
+  FontColor<<monitor>>          #1E8449
 
-  BackgroundColor<<error>>    #FDEBD0
-  BorderColor<<error>>        #E67E22
-  FontColor<<error>>          #7E5109
+  BackgroundColor<<drain>>      #FDF2E9
+  BorderColor<<drain>>          #D4AC0D
+  FontColor<<drain>>            #7D6608
 
-  BackgroundColor<<shutdown>> #F4F6F7
-  BorderColor<<shutdown>>     #717D7E
-  FontColor<<shutdown>>       #2C3E50
+  BackgroundColor<<shutdown>>   #F5B7B1
+  BorderColor<<shutdown>>       #E74C3C
+  FontColor<<shutdown>>         #922B21
+
+  BackgroundColor<<error>>      #FDEBD0
+  BorderColor<<error>>          #E67E22
+  FontColor<<error>>            #7E5109
 
   StartColor black
   EndColor black
@@ -111,7 +114,43 @@ state "Distributing" as DIST <<distribute>> {
 }
 
 ' ═══════════════════════════════════════
-' 4. ERROR
+' 4. DRAINING
+' ═══════════════════════════════════════
+
+state "Draining" as DRAIN <<drain>> {
+  SI  --> DAR : ingestion stopped
+  DAR --> DOV : API requests drained
+  DOV --> SM  : operator views drained
+
+  state "StopIngestion"      as SI  <<drain>>
+  state "DrainAPIRequests"   as DAR <<drain>>
+  state "DrainOperatorViews" as DOV <<drain>>
+  state "StopMonitoring"     as SM  <<drain>>
+
+  note right of SI
+    reject new /internal/telemetry/ingest
+    returns 503
+  end note
+  note right of SM
+    flush ingestion counters
+    write final platform_status
+  end note
+}
+
+' ═══════════════════════════════════════
+' 5. SHUTTING DOWN
+' ═══════════════════════════════════════
+
+state "ShuttingDown" as SHUT <<shutdown>> {
+  FB --> CC : buffers flushed
+  FB --> CC : flush failed (force close)
+
+  state "FlushBuffers"     as FB <<shutdown>>
+  state "CloseConnections" as CC <<shutdown>>
+}
+
+' ═══════════════════════════════════════
+' 6. ERROR
 ' ═══════════════════════════════════════
 
 state "Error" as ERR <<error>> {
@@ -124,37 +163,10 @@ state "Error" as ERR <<error>> {
 }
 
 ' ═══════════════════════════════════════
-' 5. DRAINING
-' ═══════════════════════════════════════
-
-state "Draining" as DRAIN <<shutdown>> {
-  SI  --> DAR : ingestion stopped
-  DAR --> DOV : API requests drained
-  DOV --> SM  : operator views flushed
-
-  state "StopIngestion"      as SI  <<shutdown>>
-  state "DrainAPIRequests"   as DAR <<shutdown>>
-  state "DrainOperatorViews" as DOV <<shutdown>>
-  state "StopMonitoring"     as SM  <<shutdown>>
-}
-
-' ═══════════════════════════════════════
-' 6. SHUTTING DOWN
-' ═══════════════════════════════════════
-
-state "ShuttingDown" as SHUT <<shutdown>> {
-  FB --> CC : buffers flushed
-  FB --> CC : flush failed (force close)
-
-  state "FlushBuffers"     as FB <<shutdown>>
-  state "CloseConnections" as CC <<shutdown>>
-}
-
-' ═══════════════════════════════════════
 ' TOP-LEVEL TRANSITIONS
 ' ═══════════════════════════════════════
 
-[*]   --> INIT : controller startup
+[*]   --> INIT  : controller startup
 
 INIT  --> AUTH  : initialization complete
 INIT  --> ERR   : data source unavailable
@@ -170,10 +182,10 @@ DRAIN --> SHUT  : all services drained
 DRAIN --> ERR   : drain failure
 
 ERR   --> INIT  : recovery: reinitialize
+ERR   --> DRAIN : graceful degradation
 ERR   --> SHUT  : unrecoverable failure
 REC   --> INIT  : retry initialization
 
-SHUT  --> [*] : shutdown complete
-SHUT  --> [*] : shutdown failed
+SHUT  --> [*]   : shutdown complete
 
 @enduml

@@ -59,6 +59,9 @@ fn create_alert(rule: &ThresholdRule, reading: &IndividualSensorReading) -> Aler
         zone: reading.zone.clone(),
         metric_type: reading.metric_type.clone(),
         created_at: chrono::Utc::now(),
+        acknowledged_by: None,
+        acknowledged_at: None,
+        resolved_at: None,
     }
 }
 

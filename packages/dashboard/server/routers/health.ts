@@ -32,12 +32,30 @@ export const healthRouter = router({
       const { data, status } = await callRustEndpoint('/internal/health', { method: 'GET' })
 
       if (status >= 400) {
-        return { status: 'error', message: 'rust engine unreachable' }
+        return { status: 'error' as const, message: 'rust engine unreachable' }
       }
 
-      return { status: 'ok', ...(isRecord(data) ? data : {}) }
+      return { status: 'ok' as const, ...(isRecord(data) ? data : {}) }
     } catch {
-      return { status: 'error', message: 'rust engine not running' }
+      return { status: 'error' as const, message: 'rust engine not running' }
+    }
+  }),
+
+  // server lifecycle phase (no auth, used by status indicators)
+  lifecycle: publicProcedure.query(async () => {
+    try {
+      const { data, status } = await callRustEndpoint('/internal/health', { method: 'GET' })
+      if (status >= 400 || !isRecord(data)) {
+        return { phase: 'unreachable' as const, drainStage: null, inflight: 0 }
+      }
+      const lifecycle = isRecord(data.lifecycle) ? data.lifecycle : null
+      return {
+        phase: typeof lifecycle?.phase === 'string' ? lifecycle.phase : 'unknown',
+        drainStage: typeof lifecycle?.drainStage === 'string' ? lifecycle.drainStage : null,
+        inflight: typeof lifecycle?.inflight === 'number' ? lifecycle.inflight : 0,
+      }
+    } catch {
+      return { phase: 'unreachable' as const, drainStage: null, inflight: 0 }
     }
   }),
 })
