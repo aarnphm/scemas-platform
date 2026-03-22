@@ -2,91 +2,110 @@
 hide empty description
 
 skinparam state {
-  BackgroundColor<<init>> #F2F4F4
-  BorderColor<<init>> #7F8C8D
-  FontColor<<init>> #2C3E50
+  BackgroundColor<<init>>       #F2F4F4
+  BorderColor<<init>>           #7F8C8D
+  FontColor<<init>>             #2C3E50
 
-  BackgroundColor<<auth>> #FCEAE8
-  BorderColor<<auth>> #ea9a97
-  FontColor<<auth>> #6B3A38
+  BackgroundColor<<auth>>       #FCEAE8
+  BorderColor<<auth>>           #ea9a97
+  FontColor<<auth>>             #6B3A38
 
   BackgroundColor<<distribute>> #EDE8F5
-  BorderColor<<distribute>> #a692c3
-  FontColor<<distribute>> #4A3767
+  BorderColor<<distribute>>     #a692c3
+  FontColor<<distribute>>       #4A3767
 
-  BackgroundColor<<ingest>> #D6EAF8
-  BorderColor<<ingest>> #2980B9
-  FontColor<<ingest>> #1A5276
+  BackgroundColor<<ingest>>     #D6EAF8
+  BorderColor<<ingest>>         #2980B9
+  FontColor<<ingest>>           #1A5276
 
-  BackgroundColor<<monitor>> #D5F5E3
-  BorderColor<<monitor>> #27AE60
-  FontColor<<monitor>> #1E8449
+  BackgroundColor<<monitor>>    #D5F5E3
+  BorderColor<<monitor>>        #27AE60
+  FontColor<<monitor>>          #1E8449
 
-  BackgroundColor<<drain>> #FDF2E9
-  BorderColor<<drain>> #D4AC0D
-  FontColor<<drain>> #7D6608
+  BackgroundColor<<drain>>      #FDF2E9
+  BorderColor<<drain>>          #D4AC0D
+  FontColor<<drain>>            #7D6608
 
-  BackgroundColor<<shutdown>> #F5B7B1
-  BorderColor<<shutdown>> #E74C3C
-  FontColor<<shutdown>> #922B21
+  BackgroundColor<<shutdown>>   #F5B7B1
+  BorderColor<<shutdown>>       #E74C3C
+  FontColor<<shutdown>>         #922B21
 
-  BackgroundColor<<error>> #FDEBD0
-  BorderColor<<error>> #E67E22
-  FontColor<<error>> #7E5109
+  BackgroundColor<<error>>      #FDEBD0
+  BorderColor<<error>>          #E67E22
+  FontColor<<error>>            #7E5109
 
   StartColor black
   EndColor black
 }
 
-' ──────────────────────────────────
-' TOP-LEVEL LIFECYCLE
-' ──────────────────────────────────
+' ═══════════════════════════════════════
+' 1. INITIALIZING
+' ═══════════════════════════════════════
 
 state "Initializing" as INIT <<init>> {
-  state "ConnectDataSources" as CDS <<init>>
-  state "LoadAnalyticsDB" as LDB <<init>>
   CDS --> LDB : sources available
+
+  state "ConnectDataSources" as CDS <<init>>
+  state "LoadAnalyticsDB"    as LDB <<init>>
 }
 
+' ═══════════════════════════════════════
+' 2. AUTHENTICATING
+' ═══════════════════════════════════════
+
 state "Authenticating" as AUTH <<auth>> {
+  VT --> AR : token valid
+  VT --> RC : token invalid
+  RC --> VT : retry limit not reached
+
   state "ValidateToken" as VT <<auth>>
   state "AuthorizeRole" as AR <<auth>>
-  VT --> AR : token valid
+  state "RetryCount"    as RC <<auth>>
 }
+
+' ═══════════════════════════════════════
+' 3. DISTRIBUTING
+' ═══════════════════════════════════════
 
 state "Distributing" as DIST <<distribute>> {
 
   state "DataAggregation" as AGG <<ingest>> {
-    state "IngestSensorReadings" as ISR <<ingest>>
-    state "AggregateMetrics" as AM <<ingest>>
-    state "StoreToAnalyticsDB" as STA <<ingest>>
-    ISR --> AM : raw data received
-    AM --> STA : aggregation complete
+    ISR --> AM  : raw data received
+    AM  --> STA : aggregation complete
     STA --> ISR : await next batch
+
+    state "IngestSensorReadings" as ISR <<ingest>>
+    state "AggregateMetrics"     as AM  <<ingest>>
+    state "StoreToAnalyticsDB"   as STA <<ingest>>
   }
 
   state "OperatorService" as OPS <<distribute>> {
-    state "FilterAggregatedData" as FAD <<distribute>>
-    state "VisualizeCityMetrics" as VCM <<distribute>>
     FAD --> VCM : filtered results ready
     VCM --> FAD : new filter query
+    FAD --> ERR : operator service failure
+
+    state "FilterAggregatedData" as FAD <<distribute>>
+    state "VisualizeCityMetrics" as VCM <<distribute>>
   }
 
   state "PublicAPIService" as API <<distribute>> {
-    state "HandleAPIRequest" as HAR <<distribute>>
-    state "RateLimitCheck" as RLC <<distribute>>
-    state "ReturnAggregatedData" as RAD <<distribute>>
     HAR --> RLC : request received
     RLC --> RAD : within rate limit
+    RLC --> ERR : rate limit exceeded
+
+    state "HandleAPIRequest"     as HAR <<distribute>>
+    state "RateLimitCheck"       as RLC <<distribute>>
+    state "ReturnAggregatedData" as RAD <<distribute>>
   }
 
   state "PlatformMonitoring" as MON <<monitor>> {
-    state "CollectHealthMetrics" as CHM <<monitor>>
-    state "UpdateStatusDB" as USD <<monitor>>
-    state "DisplayDashboard" as DD <<monitor>>
     CHM --> USD : metrics collected
-    USD --> DD : status persisted
-    DD --> CHM : polling interval elapsed
+    USD --> DD  : status persisted
+    DD  --> CHM : polling interval elapsed
+
+    state "CollectHealthMetrics" as CHM <<monitor>>
+    state "UpdateStatusDB"       as USD <<monitor>>
+    state "DisplayDashboard"     as DD  <<monitor>>
   }
 
   AGG --> OPS : aggregated data available
@@ -94,14 +113,20 @@ state "Distributing" as DIST <<distribute>> {
   AGG --> MON : platform metrics available
 }
 
+' ═══════════════════════════════════════
+' 4. DRAINING
+' ═══════════════════════════════════════
+
 state "Draining" as DRAIN <<drain>> {
-  state "StopIngestion" as SI <<drain>>
-  state "DrainAPIRequests" as DAR <<drain>>
-  state "DrainOperatorViews" as DOV <<drain>>
-  state "StopMonitoring" as SM <<drain>>
-  SI --> DAR : ingestion stopped
+  SI  --> DAR : ingestion stopped
   DAR --> DOV : API requests drained
-  DOV --> SM : operator views drained
+  DOV --> SM  : operator views drained
+
+  state "StopIngestion"      as SI  <<drain>>
+  state "DrainAPIRequests"   as DAR <<drain>>
+  state "DrainOperatorViews" as DOV <<drain>>
+  state "StopMonitoring"     as SM  <<drain>>
+
   note right of SI
     reject new /internal/telemetry/ingest
     returns 503
@@ -112,44 +137,55 @@ state "Draining" as DRAIN <<drain>> {
   end note
 }
 
+' ═══════════════════════════════════════
+' 5. SHUTTING DOWN
+' ═══════════════════════════════════════
+
 state "ShuttingDown" as SHUT <<shutdown>> {
-  state "CloseDBPool" as CDB <<shutdown>>
-  state "ReleaseResources" as RR <<shutdown>>
-  CDB --> RR : pool closed
+  FB --> CC : buffers flushed
+  FB --> CC : flush failed (force close)
+
+  state "FlushBuffers"     as FB <<shutdown>>
+  state "CloseConnections" as CC <<shutdown>>
 }
+
+' ═══════════════════════════════════════
+' 6. ERROR
+' ═══════════════════════════════════════
 
 state "Error" as ERR <<error>> {
-  state "LogFailure" as LF <<error>>
-  state "NotifyAdmin" as NA <<error>>
+  LF  --> NA  : failure logged
+  NA  --> REC : admin notified
+
+  state "LogFailure"      as LF  <<error>>
+  state "NotifyAdmin"     as NA  <<error>>
   state "AttemptRecovery" as REC <<error>>
-  LF --> NA : failure logged
-  NA --> REC : admin notified
 }
 
-' ──────────────────────────────────
-' TRANSITIONS
-' ──────────────────────────────────
+' ═══════════════════════════════════════
+' TOP-LEVEL TRANSITIONS
+' ═══════════════════════════════════════
 
-[*] --> INIT : controller startup
+[*]   --> INIT  : controller startup
 
-INIT --> AUTH : initialization complete
-INIT --> ERR : data source unavailable
+INIT  --> AUTH  : initialization complete
+INIT  --> ERR   : data source unavailable
 
-AUTH --> DIST : authentication successful
-AUTH --> ERR : authentication failed
+AUTH  --> DIST  : authentication successful
+AUTH  --> ERR   : retry limit exceeded
 
-DIST --> AUTH : session expired
-DIST --> ERR : distribution failure
-DIST --> DRAIN : SIGTERM / SIGINT received
+DIST  --> AUTH  : session expired
+DIST  --> ERR   : distribution failure
+DIST  --> DRAIN : shutdown signal received
 
-DRAIN --> SHUT : drain cascade complete
-SHUT --> [*] : resources released
+DRAIN --> SHUT  : all services drained
+DRAIN --> ERR   : drain failure
 
-ERR --> INIT : recovery: reinitialize
-ERR --> DRAIN : graceful degradation
-ERR --> [*] : unrecoverable failure
+ERR   --> INIT  : recovery: reinitialize
+ERR   --> DRAIN : graceful degradation
+ERR   --> SHUT  : unrecoverable failure
+REC   --> INIT  : retry initialization
 
-RLC --> ERR : rate limit exceeded
-REC --> INIT : retry initialization
+SHUT  --> [*]   : shutdown complete
 
 @enduml
