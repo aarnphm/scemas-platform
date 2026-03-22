@@ -42,3 +42,4 @@ result
 *.tsbuildinfo
 progress.md
 docs/next
+setup.sh

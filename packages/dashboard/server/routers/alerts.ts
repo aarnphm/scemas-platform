@@ -17,6 +17,7 @@ export const alertsRouter = router({
       z.object({
         status: AlertStatusSchema.optional(),
         zone: z.string().optional(),
+        hours: z.number().min(0).max(720).optional(),
         limit: z.number().min(1).max(200).default(100),
         cursor: z.string().datetime().optional(),
       }),
@@ -25,6 +26,9 @@ export const alertsRouter = router({
       const conditions = [ne(alerts.status, 'resolved')]
       if (input.status) conditions.push(eq(alerts.status, input.status))
       if (input.zone) conditions.push(buildAlertZoneCondition([input.zone]))
+      if (input.hours && input.hours > 0) {
+        conditions.push(gte(alerts.createdAt, new Date(Date.now() - input.hours * 60 * 60 * 1000)))
+      }
       if (input.cursor) conditions.push(lt(alerts.createdAt, new Date(input.cursor)))
 
       const subscription = await ctx.db.query.alertSubscriptions.findFirst({
@@ -170,6 +174,15 @@ export const alertsRouter = router({
       const results = await Promise.all(input.ids.map(id => resolveAlert(id, ctx.user.id)))
       const failed = results.filter(r => !r.success).length
       return { resolved: results.length - failed, failed }
+    }),
+
+  // batch acknowledge (max 50 at a time)
+  batchAcknowledge: protectedProcedure
+    .input(z.object({ ids: z.array(z.string().uuid()).min(1).max(50) }))
+    .mutation(async ({ input, ctx }) => {
+      const results = await Promise.all(input.ids.map(id => acknowledgeAlert(id, ctx.user.id)))
+      const failed = results.filter(r => !r.success).length
+      return { acknowledged: results.length - failed, failed }
     }),
 })
 
