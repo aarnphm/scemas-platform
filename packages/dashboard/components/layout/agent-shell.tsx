@@ -51,7 +51,7 @@ export async function AgentShell({ title, navItems = [], navExtra, children }: A
     : null
 
   return (
-    <SidebarProvider className="h-dvh !min-h-0 overflow-hidden" defaultOpen={defaultOpen}>
+    <SidebarProvider className="h-dvh min-h-0! overflow-hidden" defaultOpen={defaultOpen}>
       <Sidebar variant="inset" collapsible="offcanvas">
         <SidebarHeader className="px-4 pt-4">
           <h2 className="text-lg font-semibold text-balance">{title}</h2>
@@ -72,7 +72,11 @@ export async function AgentShell({ title, navItems = [], navExtra, children }: A
           ) : null}
         </SidebarContent>
 
-        <SidebarFooter className="px-2 pb-3">
+        <SidebarFooter className="px-2 pb-3 space-y-3">
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="text-[11px] text-muted-foreground/60">region</p>
+            <p className="text-xs font-medium">Hamilton, ON</p>
+          </div>
           {account ? (
             <AccountPopover username={account.username} email={account.email} role={account.role} />
           ) : (

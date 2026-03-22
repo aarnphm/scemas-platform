@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { RulesManager } from '@/components/admin/rules-manager'
 import { serverTrpc, HydrateClient } from '@/lib/trpc-server'
+
+export const metadata: Metadata = { title: 'threshold rules' }
 
 // DefineThresholdRules boundary (AlertingManager, admin-only)
 export default async function RulesPage() {

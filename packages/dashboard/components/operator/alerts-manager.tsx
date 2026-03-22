@@ -1,15 +1,25 @@
 'use client'
 
-import { Tick02Icon, TickDouble02Icon } from '@hugeicons/core-free-icons'
+import { MoreHorizontalCircle01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { keepPreviousData } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import Link from 'next/link'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { SeverityBadge } from '@/components/ui/severity-badge'
 import { Spinner } from '@/components/ui/spinner'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { trpc } from '@/lib/trpc'
+import { cn } from '@/lib/utils'
 import { formatZoneName } from '@/lib/zones'
 
 const ROW_HEIGHT = 56
@@ -42,41 +52,38 @@ function sortAlerts(alerts: Alert[], mode: SortMode): Alert[] {
 
 export function AlertsManager({ availableZones }: { availableZones: string[] }) {
   const utils = trpc.useUtils()
-  const alertsQuery = trpc.alerts.list.useQuery(
-    { limit: 200 },
-    { placeholderData: keepPreviousData },
-  )
   const [inflightId, setInflightId] = useState<string | null>(null)
   const [sortMode, setSortMode] = useState<SortMode>('latest')
   const [zoneFilter, setZoneFilter] = useState<string>('all')
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  function optimisticallyRemove(id: string) {
-    utils.alerts.list.setData({ limit: 200 }, old => {
-      if (!old) return old
-      return old.filter(a => a.id !== id)
-    })
-  }
+  const alertsQuery = trpc.alerts.list.useInfiniteQuery(
+    { limit: 100, zone: zoneFilter !== 'all' ? zoneFilter : undefined },
+    { getNextPageParam: lastPage => lastPage.nextCursor },
+  )
 
   const acknowledgeAlert = trpc.alerts.acknowledge.useMutation({
     onMutate: ({ id }) => setInflightId(id),
-    onSuccess: () => utils.alerts.list.invalidate(),
+    onSuccess: () => {
+      utils.alerts.list.invalidate()
+      utils.alerts.count.invalidate()
+    },
     onSettled: () => setInflightId(null),
   })
   const resolveAlert = trpc.alerts.resolve.useMutation({
-    onMutate: ({ id }) => {
-      setInflightId(id)
-      optimisticallyRemove(id)
+    onMutate: ({ id }) => setInflightId(id),
+    onSuccess: () => {
+      utils.alerts.list.invalidate()
+      utils.alerts.count.invalidate()
     },
-    onSuccess: () => utils.alerts.list.invalidate(),
     onSettled: () => setInflightId(null),
   })
 
+  const allAlerts = (alertsQuery.data?.pages.flatMap(p => p.items) ?? []) as Alert[]
+
   const filtered = useMemo(() => {
-    const all = alertsQuery.data ?? []
-    const byZone = zoneFilter === 'all' ? all : all.filter(a => a.zone === zoneFilter)
-    return sortAlerts(byZone, sortMode)
-  }, [alertsQuery.data, zoneFilter, sortMode])
+    return sortAlerts(allAlerts, sortMode)
+  }, [allAlerts, sortMode])
 
   const virtualizer = useVirtualizer({
     count: filtered.length,
@@ -84,6 +91,19 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
     estimateSize: () => ROW_HEIGHT,
     overscan: 10,
   })
+
+  const virtualItems = virtualizer.getVirtualItems()
+  const lastItemIndex = virtualItems[virtualItems.length - 1]?.index ?? 0
+
+  useEffect(() => {
+    if (
+      lastItemIndex >= filtered.length - 20 &&
+      alertsQuery.hasNextPage &&
+      !alertsQuery.isFetchingNextPage
+    ) {
+      alertsQuery.fetchNextPage()
+    }
+  }, [lastItemIndex, filtered.length, alertsQuery.hasNextPage, alertsQuery.isFetchingNextPage])
 
   if (alertsQuery.isLoading) {
     return (
@@ -108,46 +128,33 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
     <div className="rounded-lg border border-border bg-card">
       {/* header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium">alert queue</span>
-          <span className="font-mono text-[11px] tabular-nums text-muted-foreground/50">
-            {filtered.length}
-          </span>
-        </div>
+        <span className="text-sm font-medium">alert queue</span>
         <div className="flex items-center gap-2">
-          <select
-            className="h-7 rounded-md border border-input bg-background px-2 text-xs"
-            onChange={e => setZoneFilter(e.target.value)}
-            value={zoneFilter}
-          >
-            <option value="all">all zones</option>
+          <NativeSelect value={zoneFilter} onChange={e => setZoneFilter(e.target.value)}>
+            <NativeSelectOption value="all">all zones</NativeSelectOption>
             {availableZones.map(zone => (
-              <option key={zone} value={zone}>
+              <NativeSelectOption key={zone} value={zone}>
                 {formatZoneName(zone)}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-          <select
-            className="h-7 rounded-md border border-input bg-background px-2 text-sm"
-            onChange={e => setSortMode(e.target.value as SortMode)}
-            value={sortMode}
-          >
-            <option value="latest">latest first</option>
-            <option value="severity">severity</option>
-            <option value="oldest">oldest first</option>
-          </select>
+          </NativeSelect>
+          <NativeSelect value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}>
+            <NativeSelectOption value="latest">latest first</NativeSelectOption>
+            <NativeSelectOption value="severity">severity</NativeSelectOption>
+            <NativeSelectOption value="oldest">oldest first</NativeSelectOption>
+          </NativeSelect>
         </div>
       </div>
 
       {/* virtualized list */}
       {filtered.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground text-pretty">
           {zoneFilter === 'all' ? 'no alerts' : `no alerts in ${formatZoneName(zoneFilter)}`}
         </p>
       ) : (
         <div className="h-[400px] overflow-y-auto md:h-[600px]" ref={scrollRef}>
           <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-            {virtualizer.getVirtualItems().map(virtualRow => {
+            {virtualItems.map(virtualRow => {
               const alert = filtered[virtualRow.index]
               const isResolved = alert.status === 'resolved'
               return (
@@ -160,7 +167,10 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
                   }}
                 >
                   <Link
-                    className={`flex size-full items-center justify-between gap-2 border-b border-border px-4 transition-colors ${isResolved ? 'bg-emerald-500/5' : 'hover:bg-muted/50'}`}
+                    className={cn(
+                      'flex size-full items-center justify-between gap-2 border-b border-border px-4',
+                      isResolved ? 'bg-emerald-500/5' : '',
+                    )}
                     href={`/alerts/${alert.id}`}
                   >
                     <div className="min-w-0 flex-1">
@@ -182,20 +192,15 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
                     </div>
                   </Link>
                   <div
-                    className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-1"
+                    className="absolute right-4 top-1/2 -translate-y-1/2"
                     onClick={e => e.stopPropagation()}
                   >
-                    <AckIcon
+                    <AlertActions
                       alert={alert}
                       inflightId={inflightId}
-                      isPending={acknowledgeAlert.isPending}
                       onAck={() => acknowledgeAlert.mutate({ id: alert.id })}
-                    />
-                    <ResolveIcon
-                      alert={alert}
-                      inflightId={inflightId}
-                      isPending={resolveAlert.isPending}
                       onResolve={() => resolveAlert.mutate({ id: alert.id })}
+                      isPending={acknowledgeAlert.isPending || resolveAlert.isPending}
                     />
                   </div>
                 </div>
@@ -204,120 +209,59 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
           </div>
         </div>
       )}
+
+      {/* footer */}
+      <div className="flex items-center justify-between border-t border-border px-4 py-2">
+        <p className="text-xs tabular-nums text-muted-foreground">
+          {filtered.length} loaded{alertsQuery.hasNextPage ? ' of many' : ''}
+        </p>
+        {alertsQuery.isFetchingNextPage ? (
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Spinner /> loading more
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 }
 
-function AckIcon({
+function AlertActions({
   alert,
   inflightId,
   isPending,
   onAck,
-}: {
-  alert: Alert
-  inflightId: string | null
-  isPending: boolean
-  onAck: () => void
-}) {
-  const isLoading = inflightId === alert.id && isPending
-  const isAcked = alert.status === 'acknowledged' || alert.status === 'resolved'
-
-  if (isAcked) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="flex size-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400">
-              <HugeiconsIcon icon={Tick02Icon} size={14} strokeWidth={2} />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={4}>
-            acknowledged
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
-  }
-
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            aria-label="acknowledge alert"
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground active:scale-[0.96] disabled:opacity-50"
-            disabled={isLoading}
-            onClick={onAck}
-            type="button"
-          >
-            {isLoading ? (
-              <Spinner />
-            ) : (
-              <HugeiconsIcon icon={Tick02Icon} size={14} strokeWidth={2} />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={4}>
-          acknowledge
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
-
-function ResolveIcon({
-  alert,
-  inflightId,
-  isPending,
   onResolve,
 }: {
   alert: Alert
   inflightId: string | null
   isPending: boolean
+  onAck: () => void
   onResolve: () => void
 }) {
   const isLoading = inflightId === alert.id && isPending
+  const isAcked = alert.status === 'acknowledged' || alert.status === 'resolved'
   const isResolved = alert.status === 'resolved'
 
-  if (isResolved) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="flex size-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-              <HugeiconsIcon icon={TickDouble02Icon} size={14} strokeWidth={2} />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={4}>
-            resolved
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
-  }
-
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            aria-label="resolve alert"
-            className="flex size-7 items-center justify-center rounded-md bg-blue-500/10 text-blue-600 transition-colors hover:bg-blue-500/20 active:scale-[0.96] disabled:opacity-50 dark:text-blue-400"
-            disabled={isLoading}
-            onClick={onResolve}
-            type="button"
-          >
-            {isLoading ? (
-              <Spinner />
-            ) : (
-              <HugeiconsIcon icon={TickDouble02Icon} size={14} strokeWidth={2} />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={4}>
-          resolve
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button aria-label="alert actions" size="sm" variant="ghost" disabled={isLoading}>
+          {isLoading ? (
+            <Spinner />
+          ) : (
+            <HugeiconsIcon icon={MoreHorizontalCircle01Icon} size={16} strokeWidth={1.5} />
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>{alert.status}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          {!isAcked ? <DropdownMenuItem onClick={onAck}>acknowledge</DropdownMenuItem> : null}
+          {!isResolved ? <DropdownMenuItem onClick={onResolve}>resolve</DropdownMenuItem> : null}
+          {isResolved ? <DropdownMenuItem disabled>resolved</DropdownMenuItem> : null}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

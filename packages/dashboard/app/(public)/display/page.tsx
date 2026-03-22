@@ -4,8 +4,11 @@
 // ABSTRACTION: raw sensor data, device IDs, operator metadata are stripped
 // public users and third-party developers see this same view
 
+import type { Metadata } from 'next'
 import { ZoneAqiGrid } from '@/components/public/zone-aqi-grid'
 import { HazardReportSection } from './hazard-report-section'
+
+export const metadata: Metadata = { title: 'air quality display' }
 
 export default function PublicDisplayPage() {
   return (

@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { UsersManager } from '@/components/admin/users-manager'
 import { serverTrpc, HydrateClient } from '@/lib/trpc-server'
+
+export const metadata: Metadata = { title: 'users' }
 
 // ManageSecurityPermissions boundary (AccessManager, admin-only)
 export default async function UsersPage() {

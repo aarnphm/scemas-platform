@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { ingestionFailures, platformStatus } from '@scemas/db/schema'
 import { desc, eq } from 'drizzle-orm'
 // MonitorSCEMASPlatformStatus boundary (DataDistributionManager)
@@ -9,6 +10,8 @@ import { getDb } from '@/server/cached'
 import { getJwtSecret } from '@/server/env'
 import { callRustEndpoint } from '@/server/rust-client'
 import { IngestionFunnelWrapper, PlatformHealthWrapper } from './health-charts'
+
+export const metadata: Metadata = { title: 'platform health' }
 
 type IngestionHealth = { total_received: number; total_accepted: number; total_rejected: number }
 

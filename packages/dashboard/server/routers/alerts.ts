@@ -4,7 +4,7 @@
 import { alerts, alertSubscriptions } from '@scemas/db/schema'
 import { AlertStatusSchema } from '@scemas/types'
 import { TRPCError } from '@trpc/server'
-import { eq, desc, and, ne, inArray, gte, or } from 'drizzle-orm'
+import { eq, desc, and, ne, inArray, gte, or, lt, count } from 'drizzle-orm'
 import { z } from 'zod'
 import { expandZoneIdSet, expandZoneSensorIdSet, normalizeZoneId } from '@/lib/zones'
 import { callRustEndpoint, extractRustErrorMessage } from '../rust-client'
@@ -13,19 +13,21 @@ import { router, protectedProcedure } from '../trpc'
 const SuccessResponseSchema = z.object({ success: z.literal(true) })
 
 export const alertsRouter = router({
-  // list alerts filtered by the operator's subscription preferences
+  // list alerts filtered by the operator's subscription preferences (cursor-based)
   list: protectedProcedure
     .input(
       z.object({
         status: AlertStatusSchema.optional(),
         zone: z.string().optional(),
-        limit: z.number().default(50),
+        limit: z.number().min(1).max(200).default(100),
+        cursor: z.string().datetime().optional(),
       }),
     )
     .query(async ({ input, ctx }) => {
       const conditions = [ne(alerts.status, 'resolved')]
       if (input.status) conditions.push(eq(alerts.status, input.status))
       if (input.zone) conditions.push(buildAlertZoneCondition([input.zone]))
+      if (input.cursor) conditions.push(lt(alerts.createdAt, new Date(input.cursor)))
 
       const subscription = await ctx.db.query.alertSubscriptions.findFirst({
         where: eq(alertSubscriptions.userId, ctx.user.id),
@@ -43,16 +45,54 @@ export const alertsRouter = router({
         }
       }
 
+      const limit = input.limit
       const alertRows = await ctx.db.query.alerts.findMany({
         where: and(...conditions),
         orderBy: [desc(alerts.createdAt)],
-        limit: input.limit,
+        limit: limit + 1,
       })
 
-      return alertRows.map(alert => ({
-        ...alert,
-        zone: normalizeZoneId(alert.zone, alert.sensorId),
-      }))
+      const hasMore = alertRows.length > limit
+      const items = hasMore ? alertRows.slice(0, limit) : alertRows
+      const nextCursor = hasMore ? items[items.length - 1].createdAt.toISOString() : undefined
+
+      return {
+        items: items.map(alert => ({
+          ...alert,
+          zone: normalizeZoneId(alert.zone, alert.sensorId),
+        })),
+        nextCursor,
+      }
+    }),
+
+  count: protectedProcedure
+    .input(z.object({ zone: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const conditions = [ne(alerts.status, 'resolved')]
+
+      const subscription = await ctx.db.query.alertSubscriptions.findFirst({
+        where: eq(alertSubscriptions.userId, ctx.user.id),
+      })
+
+      if (subscription) {
+        if (subscription.metricTypes && subscription.metricTypes.length > 0) {
+          conditions.push(inArray(alerts.metricType, subscription.metricTypes))
+        }
+        if (subscription.zones && subscription.zones.length > 0) {
+          conditions.push(buildAlertZoneCondition(subscription.zones))
+        }
+        if (subscription.minSeverity && subscription.minSeverity > 1) {
+          conditions.push(gte(alerts.severity, subscription.minSeverity))
+        }
+      }
+
+      if (input?.zone) conditions.push(buildAlertZoneCondition([input.zone]))
+
+      const [row] = await ctx.db
+        .select({ count: count() })
+        .from(alerts)
+        .where(and(...conditions))
+      return row.count
     }),
 
   // list all alerts including resolved (for history view)

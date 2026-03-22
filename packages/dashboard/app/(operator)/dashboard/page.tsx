@@ -2,7 +2,10 @@
 // shows: metric KPIs, region metrics chart, sensor feed, alert frequency, active alerts
 // this is the primary Presentation component for the operator agent
 
+import type { Metadata } from 'next'
 import { alerts, hazardReports } from '@scemas/db/schema'
+
+export const metadata: Metadata = { title: 'operator dashboard' }
 import { count, desc, eq } from 'drizzle-orm'
 import { Suspense } from 'react'
 import { ZoneMap, type SensorPin } from '@/components/map/zone-map'

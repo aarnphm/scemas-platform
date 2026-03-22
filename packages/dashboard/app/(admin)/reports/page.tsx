@@ -1,6 +1,9 @@
 // ReportEnvironmentalHazard admin triage page (SRS CP-C3)
 
+import type { Metadata } from 'next'
 import { ReportsManager } from '@/components/admin/reports-manager'
+
+export const metadata: Metadata = { title: 'hazard reports' }
 
 export default function AdminReportsPage() {
   return (

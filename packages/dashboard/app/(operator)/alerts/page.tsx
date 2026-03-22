@@ -1,14 +1,17 @@
+import type { Metadata } from 'next'
 import { devices } from '@scemas/db/schema'
 import { AlertsManager } from '@/components/operator/alerts-manager'
 import { serverTrpc, HydrateClient } from '@/lib/trpc-server'
 import { normalizeZoneIds } from '@/lib/zones'
 import { getDb } from '@/server/cached'
 
+export const metadata: Metadata = { title: 'alerts' }
+
 // HandleActiveAlerts boundary (AlertingManager)
 export default async function AlertsPage() {
   const db = getDb()
   const [, deviceRows] = await Promise.all([
-    serverTrpc.alerts.list.prefetch({ limit: 200 }),
+    serverTrpc.alerts.list.prefetchInfinite({ limit: 100 }),
     db.query.devices.findMany({ columns: { zone: true } }),
   ])
   const availableZones = normalizeZoneIds(deviceRows.map(d => d.zone))

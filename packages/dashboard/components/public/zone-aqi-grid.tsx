@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
-import { usePublicSettings } from '@/lib/settings'
 import { Spinner } from '@/components/ui/spinner'
+import { usePublicSettings } from '@/lib/settings'
 import { trpc } from '@/lib/trpc'
 import { cn } from '@/lib/utils'
 import { ZoneAqiBarChart } from './zone-aqi-bar-chart'

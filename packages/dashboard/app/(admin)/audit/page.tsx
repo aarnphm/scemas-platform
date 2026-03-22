@@ -1,11 +1,13 @@
+import type { Metadata } from 'next'
 import { AuditLogList } from '@/components/admin/audit-log-list'
 import { serverTrpc, HydrateClient } from '@/lib/trpc-server'
 import { AuditEventPanel } from './audit-event-panel'
 
+export const metadata: Metadata = { title: 'audit logs' }
+
 // AlertAndAuditLogDB viewer (admin-only)
 export default async function AuditPage() {
   void serverTrpc.audit.list.prefetchInfinite({ limit: 100 })
-  void serverTrpc.audit.count.prefetch()
   void serverTrpc.audit.frequency.prefetch({ hours: 24 })
 
   return (

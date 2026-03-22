@@ -1,13 +1,13 @@
 'use client'
 
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { CopyButton } from '@/components/copy-button'
 import { Spinner } from '@/components/ui/spinner'
 import { trpc } from '@/lib/trpc'
 import { cn } from '@/lib/utils'
 
-const ROW_HEIGHT = 36
+const ROW_HEIGHT = 44
 const DETAIL_HEIGHT = 192
 
 type AuditEntry = {
@@ -21,9 +21,6 @@ type AuditEntry = {
 export function AuditLogList() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-
-  const countQuery = trpc.audit.count.useQuery()
-  const totalCount = countQuery.data ?? 0
 
   const auditQuery = trpc.audit.list.useInfiniteQuery(
     { limit: 100 },
@@ -43,17 +40,18 @@ export function AuditLogList() {
     virtualizer.measure()
   }, [expandedId])
 
-  // fetch next page when scrolled near bottom
   const virtualItems = virtualizer.getVirtualItems()
-  const lastItem = virtualItems[virtualItems.length - 1]
-  if (
-    lastItem &&
-    lastItem.index >= logs.length - 20 &&
-    auditQuery.hasNextPage &&
-    !auditQuery.isFetchingNextPage
-  ) {
-    auditQuery.fetchNextPage()
-  }
+  const lastItemIndex = virtualItems[virtualItems.length - 1]?.index ?? 0
+
+  useEffect(() => {
+    if (
+      lastItemIndex >= logs.length - 20 &&
+      auditQuery.hasNextPage &&
+      !auditQuery.isFetchingNextPage
+    ) {
+      auditQuery.fetchNextPage()
+    }
+  }, [lastItemIndex, logs.length, auditQuery.hasNextPage, auditQuery.isFetchingNextPage])
 
   if (auditQuery.isLoading) {
     return (
@@ -78,7 +76,7 @@ export function AuditLogList() {
     return (
       <div className="rounded-lg border border-border bg-card">
         <AuditHeader />
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground text-pretty">
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground text-balance">
           no audit events have been recorded yet
         </p>
       </div>
@@ -147,7 +145,7 @@ export function AuditLogList() {
       </div>
       <div className="flex items-center justify-between border-t border-border px-4 py-2">
         <p className="text-xs tabular-nums text-muted-foreground">
-          {logs.length} loaded of {totalCount} events
+          {logs.length} loaded{auditQuery.hasNextPage ? ' of many' : ''}
         </p>
         {auditQuery.isFetchingNextPage ? (
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">

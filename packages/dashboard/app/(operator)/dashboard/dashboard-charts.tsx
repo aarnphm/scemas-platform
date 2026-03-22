@@ -60,7 +60,11 @@ export function DashboardChartsPanel({ availableZones }: { availableZones: strin
         {timeSeriesQuery.isError ? (
           <p className="h-72 text-sm text-destructive">{timeSeriesQuery.error.message}</p>
         ) : (
-          <ZoneMetricsChart data={timeSeriesQuery.data ?? []} />
+          <ZoneMetricsChart
+            data={timeSeriesQuery.data ?? []}
+            zoneName={formatZoneName(selectedZone)}
+            hours={hours}
+          />
         )}
       </div>
     </div>

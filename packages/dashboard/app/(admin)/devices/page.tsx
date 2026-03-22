@@ -1,6 +1,9 @@
 // AuthorizeIoTDevices admin page: manage registered IoT sensor devices
 
+import type { Metadata } from 'next'
 import { DevicesManager } from '@/components/admin/devices-manager'
+
+export const metadata: Metadata = { title: 'devices' }
 
 export default function AdminDevicesPage() {
   return (

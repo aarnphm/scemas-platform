@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { cn } from '@/lib/utils'
 import { formatZoneName, hamiltonMonitoringRegions } from '@/lib/zones'
 
 type SensorPin = {
@@ -47,6 +48,21 @@ type ProjectedRegion = {
 
 type ProjectedOverlay = { width: number; height: number; regions: ProjectedRegion[] }
 
+const HAMILTON_BOUNDS: [[number, number], [number, number]] = [
+  [-80.02, 43.195],
+  [-79.735, 43.285],
+]
+const HAMILTON_CENTER = { lng: -79.878, lat: 43.241 }
+const DRIFT_THRESHOLD = 0.05
+
+function isNearHamilton(map: MapRef): boolean {
+  const center = map.getCenter()
+  return (
+    Math.abs(center.lng - HAMILTON_CENTER.lng) < DRIFT_THRESHOLD &&
+    Math.abs(center.lat - HAMILTON_CENTER.lat) < DRIFT_THRESHOLD
+  )
+}
+
 const LABEL_CHAR_WIDTH = 6.6
 const LABEL_PADDING_X = 8
 const LABEL_PADDING_Y = 4
@@ -65,10 +81,12 @@ export function ZoneMap({ sensors, alertCounts }: ZoneMapProps) {
   const [hoveredZone, setHoveredZone] = useState<string | null>(null)
   const [layers, setLayers] = useState<LayerVisibility>({ sensors: true, zones: false })
   const [projectedOverlay, setProjectedOverlay] = useState<ProjectedOverlay | null>(null)
+  const [drifted, setDrifted] = useState(false)
   const mapRef = useRef<MapRef | null>(null)
 
   const reproject = useCallback(() => {
     setProjectedOverlay(buildProjectedOverlay(mapRef.current, alertCounts))
+    if (mapRef.current) setDrifted(!isNearHamilton(mapRef.current))
   }, [alertCounts])
 
   useEffect(() => {
@@ -289,6 +307,22 @@ export function ZoneMap({ sensors, alertCounts }: ZoneMapProps) {
             }}
           />
         </div>
+        <button
+          type="button"
+          aria-label="reset map to hamilton"
+          className={cn(
+            'absolute bottom-3 right-3 rounded-md border px-2.5 py-2 text-xs font-medium active:scale-[0.96]',
+            drifted
+              ? 'border-border bg-card text-foreground shadow-sm'
+              : 'border-transparent bg-card/60 text-muted-foreground',
+          )}
+          onClick={() => {
+            mapRef.current?.fitBounds(HAMILTON_BOUNDS, { padding: 24, duration: 600 })
+            setDrifted(false)
+          }}
+        >
+          reset
+        </button>
       </div>
     </div>
   )
@@ -305,11 +339,13 @@ function LayerToggle({
 }) {
   return (
     <button
-      className={`rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
+      aria-label={`toggle ${label}`}
+      className={cn(
+        'rounded-md border px-2.5 py-2 text-xs font-medium',
         active
           ? 'border-border bg-card text-foreground shadow-sm'
-          : 'border-transparent bg-card/60 text-muted-foreground'
-      }`}
+          : 'border-transparent bg-card/60 text-muted-foreground',
+      )}
       onClick={onToggle}
       type="button"
     >

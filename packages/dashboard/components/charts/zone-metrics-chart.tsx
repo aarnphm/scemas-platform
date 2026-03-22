@@ -37,12 +37,29 @@ function formatTime(isoString: string) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-export function ZoneMetricsChart({ data }: { data: TimeSeriesPoint[] }) {
+const periodLabels: Record<number, string> = {
+  3: 'last 3 hours',
+  6: 'last 6 hours',
+  12: 'last 12 hours',
+  24: 'last 24 hours',
+  72: 'last 3 days',
+  168: 'last 7 days',
+  720: 'last 30 days',
+}
+
+function formatPeriod(hours: number): string {
+  return periodLabels[hours] ?? `last ${hours}h`
+}
+
+type ZoneMetricsChartProps = { data: TimeSeriesPoint[]; zoneName?: string; hours?: number }
+
+export function ZoneMetricsChart({ data, zoneName, hours }: ZoneMetricsChartProps) {
   if (data.length === 0) {
+    const context = [zoneName, hours ? formatPeriod(hours) : null].filter(Boolean).join(', ')
     return (
       <div className="flex h-72 items-center justify-center">
-        <p className="text-sm text-muted-foreground">
-          no analytics data available for this zone yet
+        <p className="text-sm text-muted-foreground text-pretty">
+          no analytics data available{context ? ` for ${context}` : ' yet'}
         </p>
       </div>
     )

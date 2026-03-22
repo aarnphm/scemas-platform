@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
-import { usePublicSettings } from '@/lib/settings'
 import { sensorCatalog } from '@/lib/sensor-catalog'
+import { usePublicSettings } from '@/lib/settings'
 import { hamiltonMonitoringRegions } from '@/lib/zones'
 
 type MonitoringRegionSummary = {
@@ -47,10 +47,7 @@ export function MonitoringRegionDirectory() {
   const [page, setPage] = useState(0)
   const totalPages = Math.ceil(monitoringRegions.length / pageSize)
   const safePage = Math.min(page, Math.max(0, totalPages - 1))
-  const pageRegions = monitoringRegions.slice(
-    safePage * pageSize,
-    (safePage + 1) * pageSize,
-  )
+  const pageRegions = monitoringRegions.slice(safePage * pageSize, (safePage + 1) * pageSize)
 
   return (
     <section className="space-y-4 rounded-xl bg-card/40 p-6">

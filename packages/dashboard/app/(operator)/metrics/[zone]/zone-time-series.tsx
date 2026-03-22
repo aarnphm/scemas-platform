@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { ZoneMetricsChart } from '@/components/charts/zone-metrics-chart'
 import { Spinner } from '@/components/ui/spinner'
 import { trpc } from '@/lib/trpc'
+import { formatZoneName } from '@/lib/zones'
 
 const PERIODS = [
   { label: '3h', hours: 3 },
@@ -58,7 +59,7 @@ export function ZoneTimeSeriesPanel({ zone }: { zone: string }) {
             <p className="text-sm text-destructive">{query.error.message}</p>
           </div>
         ) : (
-          <ZoneMetricsChart data={query.data ?? []} />
+          <ZoneMetricsChart data={query.data ?? []} zoneName={formatZoneName(zone)} hours={hours} />
         )}
       </div>
     </div>

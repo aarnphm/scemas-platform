@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
+use clap_complete::{Shell, generate};
 use scemas_core::config::Config;
 use scemas_core::models::{
     AlertStatus, Comparison, MetricType, ParseModelError, RuleStatus, Severity, ThresholdRule,
@@ -10,6 +11,8 @@ use serde::Serialize;
 use sqlx::FromRow;
 use std::env;
 use std::ffi::OsString;
+use std::fs::{self, OpenOptions};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::str::FromStr;
@@ -35,6 +38,7 @@ enum Commands {
         #[command(subcommand)]
         command: DevCommands,
     },
+    Completion(CompletionArgs),
     Health(HealthArgs),
     Rules {
         #[command(subcommand)]
@@ -108,6 +112,12 @@ struct HealthArgs {
 
     #[arg(long, default_value_t = 10)]
     limit: i64,
+}
+
+#[derive(Args, Debug)]
+struct CompletionArgs {
+    #[arg(value_enum)]
+    shell: Shell,
 }
 
 #[derive(Args, Debug)]
@@ -262,22 +272,38 @@ enum CliError {
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
-    let root = find_project_root()?;
-    env::set_current_dir(&root)?;
-    dotenvy::dotenv().ok();
-
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Dev { command } => handle_dev(command, &root).await,
-        Commands::Health(args) => handle_health(args).await,
-        Commands::Rules { command } => handle_rules(command).await,
-        Commands::Alerts { command } => handle_alerts(command).await,
-        Commands::Tokens { command } => handle_tokens(command).await,
+        Commands::Completion(args) => handle_completion(args),
+        command => {
+            let root = find_project_root()?;
+            env::set_current_dir(&root)?;
+            load_dotenv(&root);
+
+            match command {
+                Commands::Dev { command } => handle_dev(command, &root).await,
+                Commands::Health(args) => handle_health(args).await,
+                Commands::Rules { command } => handle_rules(command).await,
+                Commands::Alerts { command } => handle_alerts(command).await,
+                Commands::Tokens { command } => handle_tokens(command).await,
+                Commands::Completion(_) => Ok(()),
+            }
+        }
     }
 }
 
+fn handle_completion(args: CompletionArgs) -> Result<(), CliError> {
+    let mut command = Cli::command();
+    let command_name = command.get_name().to_owned();
+    generate(args.shell, &mut command, command_name, &mut io::stdout());
+    Ok(())
+}
+
 async fn handle_dev(command: DevCommands, root: &Path) -> Result<(), CliError> {
+    ensure_first_time_setup(root)?;
+    load_dotenv(root);
+
     match command {
         DevCommands::Up => dev_up(root).await,
         DevCommands::DbUp => start_db(root),
@@ -304,6 +330,32 @@ async fn handle_dev(command: DevCommands, root: &Path) -> Result<(), CliError> {
         DevCommands::Webhook(args) => run_script(root, "webhook-echo.ts", &args.args),
         DevCommands::Check => dev_check(root),
     }
+}
+
+fn load_dotenv(root: &Path) {
+    let _ = dotenvy::from_path_override(root.join(".env"));
+}
+
+fn ensure_first_time_setup(root: &Path) -> Result<(), CliError> {
+    let sentinel = root.join(".derived");
+    if sentinel.is_file() {
+        return Ok(());
+    }
+
+    eprintln!("[scemas] first-time setup");
+
+    let env_path = root.join(".env");
+    let env_example = root.join(".env.example");
+    if !env_path.is_file() && env_example.is_file() {
+        fs::copy(&env_example, &env_path)?;
+        eprintln!("[scemas] created .env from .env.example");
+    }
+
+    run_checked(root, "bun", &[OsString::from("install")])?;
+    fs::write(sentinel, b"")?;
+    eprintln!("[scemas] first-time setup complete");
+
+    Ok(())
 }
 
 async fn handle_health(args: HealthArgs) -> Result<(), CliError> {
@@ -629,17 +681,41 @@ fn ensure_database(root: &Path) -> Result<(), CliError> {
 }
 
 fn start_db(root: &Path) -> Result<(), CliError> {
-    if has_command("pg_start") {
-        eprintln!("[scemas] starting postgres via nix");
-        if has_command("pg_init") {
-            let _ = Command::new("pg_init")
-                .current_dir(root)
-                .stdin(Stdio::inherit())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status();
-        }
-        return run_checked(root, "pg_start", &[]);
+    if has_command("initdb") && has_command("pg_ctl") && has_command("createdb") {
+        let pgdata = postgres_data_dir(root);
+        let pgport = postgres_port();
+
+        initialize_postgres(root, &pgdata, &pgport)?;
+        eprintln!("[scemas] starting postgres via local postgres binaries");
+        run_checked(
+            root,
+            "pg_ctl",
+            &[
+                OsString::from("-D"),
+                pgdata.clone().into_os_string(),
+                OsString::from("-l"),
+                pgdata.join("postgres.log").into_os_string(),
+                OsString::from("start"),
+            ],
+        )?;
+
+        let _ = Command::new("createdb")
+            .current_dir(root)
+            .args([
+                OsString::from("-h"),
+                pgdata.into_os_string(),
+                OsString::from("-p"),
+                OsString::from(pgport),
+                OsString::from("-U"),
+                OsString::from("scemas"),
+                OsString::from("scemas"),
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?;
+
+        return Ok(());
     }
 
     if has_command("docker") {
@@ -657,15 +733,26 @@ fn start_db(root: &Path) -> Result<(), CliError> {
         );
     }
 
-    Err(CliError::MissingCommand("pg_start or docker".to_owned()))
+    Err(CliError::MissingCommand(
+        "initdb + pg_ctl + createdb, or docker".to_owned(),
+    ))
 }
 
 fn stop_db(root: &Path) -> Result<(), CliError> {
     let mut attempted = false;
+    let pgdata = postgres_data_dir(root);
 
-    if has_command("pg_stop") {
+    if has_command("pg_ctl") && pgdata.is_dir() {
         attempted = true;
-        run_checked(root, "pg_stop", &[])?;
+        run_checked(
+            root,
+            "pg_ctl",
+            &[
+                OsString::from("-D"),
+                pgdata.into_os_string(),
+                OsString::from("stop"),
+            ],
+        )?;
     }
 
     if has_command("docker") {
@@ -682,11 +769,58 @@ fn stop_db(root: &Path) -> Result<(), CliError> {
         )?;
     }
 
-    if attempted {
+    if attempted || !postgres_data_dir(root).exists() {
         Ok(())
     } else {
-        Err(CliError::MissingCommand("pg_stop or docker".to_owned()))
+        Err(CliError::MissingCommand("pg_ctl or docker".to_owned()))
     }
+}
+
+fn initialize_postgres(root: &Path, pgdata: &Path, pgport: &str) -> Result<(), CliError> {
+    if pgdata.is_dir() {
+        return Ok(());
+    }
+
+    eprintln!("[scemas] initializing postgres in {}", pgdata.display());
+    run_checked(
+        root,
+        "initdb",
+        &[
+            OsString::from("-D"),
+            pgdata.as_os_str().to_owned(),
+            OsString::from("-U"),
+            OsString::from("scemas"),
+        ],
+    )?;
+
+    append_line(
+        pgdata.join("pg_hba.conf"),
+        "host all all 127.0.0.1/32 trust",
+    )?;
+    append_line(pgdata.join("pg_hba.conf"), "host all all ::1/128 trust")?;
+    append_line(
+        pgdata.join("postgresql.conf"),
+        &format!("unix_socket_directories = '{}'", pgdata.display()),
+    )?;
+    append_line(pgdata.join("postgresql.conf"), &format!("port = {pgport}"))?;
+
+    Ok(())
+}
+
+fn append_line(path: PathBuf, line: &str) -> Result<(), CliError> {
+    let mut file = OpenOptions::new().append(true).open(path)?;
+    writeln!(file, "{line}")?;
+    Ok(())
+}
+
+fn postgres_data_dir(root: &Path) -> PathBuf {
+    env::var_os("PGDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| root.join(".pgdata"))
+}
+
+fn postgres_port() -> String {
+    env::var("PGPORT").unwrap_or_else(|_| "5432".to_owned())
 }
 
 fn run_script(root: &Path, script_name: &str, passthrough_args: &[String]) -> Result<(), CliError> {
