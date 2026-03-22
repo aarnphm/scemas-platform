@@ -1,6 +1,5 @@
 import { alerts } from '@scemas/db/schema'
 import { eq } from 'drizzle-orm'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SeverityBadge } from '@/components/ui/severity-badge'
 import { formatZoneName } from '@/lib/zones'

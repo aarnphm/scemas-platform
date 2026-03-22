@@ -79,11 +79,10 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
     onSettled: () => setInflightId(null),
   })
 
-  const allAlerts = (alertsQuery.data?.pages.flatMap(p => p.items) ?? []) as Alert[]
-
   const filtered = useMemo(() => {
+    const allAlerts = (alertsQuery.data?.pages.flatMap(p => p.items) ?? []) as Alert[]
     return sortAlerts(allAlerts, sortMode)
-  }, [allAlerts, sortMode])
+  }, [alertsQuery.data, sortMode])
 
   const virtualizer = useVirtualizer({
     count: filtered.length,
@@ -103,7 +102,7 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
     ) {
       alertsQuery.fetchNextPage()
     }
-  }, [lastItemIndex, filtered.length, alertsQuery.hasNextPage, alertsQuery.isFetchingNextPage])
+  }, [lastItemIndex, filtered.length, alertsQuery])
 
   if (alertsQuery.isLoading) {
     return (

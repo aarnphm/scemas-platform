@@ -5,7 +5,7 @@ import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { countActiveTokens } from '../api-tokens'
 import { callRustEndpoint, extractRustErrorMessage } from '../rust-client'
-import { router, protectedProcedure, adminProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 
 const MAX_ACTIVE_TOKENS_PER_USER = 5
 

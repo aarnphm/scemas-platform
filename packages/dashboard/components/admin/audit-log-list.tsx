@@ -38,7 +38,7 @@ export function AuditLogList() {
 
   useLayoutEffect(() => {
     virtualizer.measure()
-  }, [expandedId])
+  }, [expandedId, virtualizer])
 
   const virtualItems = virtualizer.getVirtualItems()
   const lastItemIndex = virtualItems[virtualItems.length - 1]?.index ?? 0
@@ -51,7 +51,7 @@ export function AuditLogList() {
     ) {
       auditQuery.fetchNextPage()
     }
-  }, [lastItemIndex, logs.length, auditQuery.hasNextPage, auditQuery.isFetchingNextPage])
+  }, [lastItemIndex, logs.length, auditQuery])
 
   if (auditQuery.isLoading) {
     return (

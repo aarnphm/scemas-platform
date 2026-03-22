@@ -66,6 +66,7 @@ const regionMetadataByZone = new Map(
   ]),
 )
 
+// oxlint-disable-next-line no-map-spread
 export const sensorCatalog: SensorCatalogEntry[] = rawSensorCatalog.map(sensor => {
   const regionMetadata = regionMetadataByZone.get(sensor.zone)
 

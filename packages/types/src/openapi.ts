@@ -15,8 +15,6 @@ import {
   ThresholdRuleSchema,
   AlertSubscriptionSchema,
   UpdateAlertSubscriptionSchema,
-  MetricTypeSchema,
-  PublicAggregationTypeSchema,
   TokenScopeSchema,
 } from './index'
 

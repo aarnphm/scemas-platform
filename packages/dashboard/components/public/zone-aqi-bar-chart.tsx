@@ -24,10 +24,6 @@ function aqiColor(aqi: number): string {
   return 'oklch(0.47 0.157 37.304)'
 }
 
-function formatMetric(value: number | null): string {
-  return value === null ? '--' : `${value}`
-}
-
 export function ZoneAqiBarChart({ zones }: { zones: PublicZoneSummary[] }) {
   if (zones.length === 0) return null
 

@@ -33,6 +33,7 @@ export function IngestionFunnelChart({ stats }: { stats: IngestionStats }) {
         <ChartTooltip content={<ChartTooltipContent />} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]}>
           {data.map((_, index) => (
+            // eslint-disable-next-line react/no-array-index-key -- key is barColors[index], a color string
             <Cell fill={barColors[index]} key={barColors[index]} />
           ))}
         </Bar>

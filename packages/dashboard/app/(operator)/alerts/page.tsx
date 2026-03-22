@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { devices } from '@scemas/db/schema'
 import { AlertsManager } from '@/components/operator/alerts-manager'
 import { serverTrpc, HydrateClient } from '@/lib/trpc-server'
 import { normalizeZoneIds } from '@/lib/zones'

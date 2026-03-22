@@ -16,7 +16,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { SESSION_COOKIE_NAME, resolveSessionUser } from '@/lib/session'
+import { resolveSessionUser } from '@/lib/session'
 import { getDb } from '@/server/cached'
 import { getJwtSecret } from '@/server/env'
 import { AccountPopover } from './account-popover'
@@ -36,7 +36,6 @@ type AgentShellProps = {
 export async function AgentShell({ title, navItems = [], navExtra, children }: AgentShellProps) {
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get('sidebar_state')?.value !== 'false'
-  const hasSession = cookieStore.has(SESSION_COOKIE_NAME)
 
   const cookieHeader = cookieStore
     .getAll()

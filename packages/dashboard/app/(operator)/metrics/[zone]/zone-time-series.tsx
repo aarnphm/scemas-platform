@@ -23,8 +23,6 @@ export function ZoneTimeSeriesPanel({ zone }: { zone: string }) {
     { refetchInterval: 30_000, placeholderData: keepPreviousData },
   )
 
-  const activeLabel = PERIODS.find(p => p.hours === hours)?.label ?? `${hours}h`
-
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between">

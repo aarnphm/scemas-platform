@@ -359,6 +359,7 @@ export class DataDistributionManager {
   async getPublicZoneAqi(): Promise<ZoneAQI[]> {
     const zones = await this.getPublicZoneSummary()
 
+    // oxlint-disable-next-line no-map-spread
     return zones.map(zone => ({
       zone: zone.zone,
       aqi: zone.aqi,

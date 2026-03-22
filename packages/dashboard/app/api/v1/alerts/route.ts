@@ -1,7 +1,7 @@
-import { alerts } from '@scemas/db/schema'
-import { desc, eq, and } from 'drizzle-orm'
+import { alerts, alertSubscriptions } from '@scemas/db/schema'
+import { desc, eq, and, inArray, gte, or } from 'drizzle-orm'
 import { z } from 'zod'
-import { normalizeZoneId } from '@/lib/zones'
+import { expandZoneIdSet, expandZoneSensorIdSet, normalizeZoneId } from '@/lib/zones'
 import { getDb } from '@/server/cached'
 import {
   withScopedAuth,
@@ -16,7 +16,7 @@ const AlertsQuerySchema = z.object({
 })
 
 export async function GET(request: Request): Promise<Response> {
-  return withScopedAuth(request, 'read', async () => {
+  return withScopedAuth(request, 'read', async auth => {
     const params = getRequestSearchParams(request)
     const parsed = parsePublicApiInput(AlertsQuerySchema, params)
     if (!parsed.success) {
@@ -27,6 +27,29 @@ export async function GET(request: Request): Promise<Response> {
     const conditions = []
     if (parsed.data.status) {
       conditions.push(eq(alerts.status, parsed.data.status))
+    }
+
+    const subscription = await db.query.alertSubscriptions.findFirst({
+      where: eq(alertSubscriptions.userId, auth.accountId),
+    })
+
+    if (subscription) {
+      if (subscription.metricTypes && subscription.metricTypes.length > 0) {
+        conditions.push(inArray(alerts.metricType, subscription.metricTypes))
+      }
+      if (subscription.zones && subscription.zones.length > 0) {
+        const expandedZones = expandZoneIdSet(subscription.zones)
+        const sensorIds = expandZoneSensorIdSet(subscription.zones)
+        const zoneCond = inArray(alerts.zone, expandedZones)
+        conditions.push(
+          sensorIds.length > 0
+            ? (or(zoneCond, inArray(alerts.sensorId, sensorIds)) ?? zoneCond)
+            : zoneCond,
+        )
+      }
+      if (subscription.minSeverity && subscription.minSeverity > 1) {
+        conditions.push(gte(alerts.severity, subscription.minSeverity))
+      }
     }
 
     const rows = await db.query.alerts.findMany({

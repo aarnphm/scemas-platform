@@ -1,5 +1,6 @@
 // creates default accounts for each role if they don't exist.
 // idempotent: safe to run after every schema push.
+/* eslint-disable no-await-in-loop */
 
 import { eq } from 'drizzle-orm'
 import { createDb } from '../src/client'
@@ -16,24 +17,27 @@ const defaultUsers = [
 
 const db = createDb(DATABASE_URL)
 
-for (const user of defaultUsers) {
-  const existing = await db.query.accounts.findFirst({
-    where: eq(accounts.email, user.email),
-    columns: { id: true },
-  })
+async function ensureUsers() {
+  for (const user of defaultUsers) {
+    const existing = await db.query.accounts.findFirst({
+      where: eq(accounts.email, user.email),
+      columns: { id: true },
+    })
 
-  if (existing) {
-    console.log(`[scemas] ${user.role} account exists (${user.email})`)
-    continue
+    if (existing) {
+      console.log(`[scemas] ${user.role} account exists (${user.email})`)
+      continue
+    }
+
+    const passwordHash = await Bun.password.hash(user.password, 'argon2id')
+
+    await db
+      .insert(accounts)
+      .values({ email: user.email, username: user.username, passwordHash, role: user.role })
+
+    console.log(`[scemas] created ${user.role} account (${user.email} / ${user.password})`)
   }
-
-  const passwordHash = await Bun.password.hash(user.password, 'argon2id')
-
-  await db
-    .insert(accounts)
-    .values({ email: user.email, username: user.username, passwordHash, role: user.role })
-
-  console.log(`[scemas] created ${user.role} account (${user.email} / ${user.password})`)
 }
 
+await ensureUsers()
 await db.$client.end()

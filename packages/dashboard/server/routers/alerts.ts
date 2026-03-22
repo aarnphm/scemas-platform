@@ -55,6 +55,7 @@ export const alertsRouter = router({
       const nextCursor = hasMore ? items[items.length - 1].createdAt.toISOString() : undefined
 
       return {
+        // oxlint-disable-next-line no-map-spread
         items: items.map(alert => ({
           ...alert,
           zone: normalizeZoneId(alert.zone, alert.sensorId),
@@ -102,6 +103,7 @@ export const alertsRouter = router({
         limit: input.limit,
       })
 
+      // oxlint-disable-next-line no-map-spread
       return alertRows.map(alert => ({
         ...alert,
         zone: normalizeZoneId(alert.zone, alert.sensorId),

@@ -23,15 +23,51 @@ use std::time::Duration;
 use tokio::process::{Child, Command as TokioCommand};
 use uuid::Uuid;
 
+const CLI_LONG_ABOUT: &str = "\
+local control plane for the scemas workspace.
+
+use this binary to start the local stack, inspect operational state, manage
+alerting resources, and generate shell completions without relying on old shell
+aliases or dashboard-only flows.";
+
+const CLI_AFTER_LONG_HELP: &str = "\
+examples:
+  scemas dev
+  scemas dev --reload
+  scemas health --output json
+  scemas rules list --output json
+  scemas alerts list --status active
+
+environment:
+  DATABASE_URL       rust runtime database connection
+  PGDATA             local postgres data dir (default: <repo>/.pgdata)
+  PGPORT             local postgres port (default: 5432)
+  RUST_LOG           tracing filter, --debug adds debug logs on top
+  SCEMAS_API_URL     optional remote dashboard api base url
+  SCEMAS_API_TOKEN   optional bearer token for remote mode";
+
+const DEV_AFTER_LONG_HELP: &str = "\
+examples:
+  scemas dev
+  scemas dev --reload
+  scemas dev engine --reload
+  scemas dev check";
+
 #[derive(Parser, Debug)]
 #[command(
     name = "scemas",
     bin_name = "scemas",
     about = "agent-friendly local control plane for scemas",
+    long_about = CLI_LONG_ABOUT,
+    after_long_help = CLI_AFTER_LONG_HELP,
     version
 )]
 struct Cli {
-    #[arg(long, global = true)]
+    #[arg(
+        long,
+        global = true,
+        help = "enable debug logging for subprocesses and postgres diagnostics"
+    )]
     debug: bool,
 
     #[command(subcommand)]
@@ -40,17 +76,23 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// local development workflow and process orchestration
     Dev(DevCommandArgs),
+    /// generate shell completion code for bash, zsh, or fish
     Completion(CompletionArgs),
+    /// inspect ingestion counters and platform status
     Health(HealthArgs),
+    /// inspect and manage threshold alert rules
     Rules {
         #[command(subcommand)]
         command: RuleCommands,
     },
+    /// inspect and manage active alerts
     Alerts {
         #[command(subcommand)]
         command: AlertCommands,
     },
+    /// create api tokens for dashboard or agent access
     Tokens {
         #[command(subcommand)]
         command: TokenCommands,
@@ -58,6 +100,7 @@ enum Commands {
 }
 
 #[derive(Args, Debug)]
+#[command(after_long_help = DEV_AFTER_LONG_HELP)]
 struct DevCommandArgs {
     #[command(flatten)]
     up: DevRunArgs,
@@ -68,11 +111,17 @@ struct DevCommandArgs {
 
 #[derive(Subcommand, Debug)]
 enum DevCommands {
+    /// start the local stack, postgres checks, rust engine, and dashboard
     Up(DevRunArgs),
+    /// run only the rust engine process
     Engine(DevRunArgs),
+    /// run only the next.js dashboard dev server
     Dashboard,
+    /// run the repo seed script with passthrough arguments
     Seed(PassthroughArgs),
+    /// run the webhook echo script with passthrough arguments
     Webhook(PassthroughArgs),
+    /// run formatter, clippy, and dashboard typecheck
     Check,
 }
 
@@ -84,28 +133,37 @@ struct DevRunArgs {
 
 #[derive(Subcommand, Debug)]
 enum RuleCommands {
+    /// list threshold rules
     List(ListArgs),
+    /// create a new threshold rule
     Create(CreateRuleArgs),
+    /// edit an existing threshold rule
     Edit(EditRuleArgs),
+    /// change a rule between active and inactive
     SetStatus(SetRuleStatusArgs),
+    /// delete a threshold rule
     Delete(DeleteRuleArgs),
 }
 
 #[derive(Subcommand, Debug)]
 enum AlertCommands {
+    /// list alerts, optionally filtered by status
     List(ListAlertsArgs),
+    /// acknowledge an alert
     Acknowledge(AlertActorArgs),
+    /// resolve an alert
     Resolve(AlertActorArgs),
 }
 
 #[derive(Subcommand, Debug)]
 enum TokenCommands {
+    /// create a new api token for an account
     Create(CreateTokenArgs),
 }
 
 #[derive(Args, Debug, Clone)]
 struct OutputArgs {
-    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text, help = "render output as text or json")]
     output: OutputFormat,
 }
 
@@ -117,7 +175,11 @@ enum OutputFormat {
 
 #[derive(Args, Debug)]
 struct PassthroughArgs {
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    #[arg(
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        help = "arguments passed through to the underlying script"
+    )]
     args: Vec<String>,
 }
 
@@ -126,13 +188,17 @@ struct HealthArgs {
     #[command(flatten)]
     output: OutputArgs,
 
-    #[arg(long, default_value_t = 10)]
+    #[arg(
+        long,
+        default_value_t = 10,
+        help = "number of platform_status rows to include"
+    )]
     limit: i64,
 }
 
 #[derive(Args, Debug)]
 struct CompletionArgs {
-    #[arg(value_enum)]
+    #[arg(value_enum, help = "shell to generate completion code for")]
     shell: Shell,
 }
 
@@ -141,7 +207,7 @@ struct ListArgs {
     #[command(flatten)]
     output: OutputArgs,
 
-    #[arg(long, default_value_t = 50)]
+    #[arg(long, default_value_t = 50, help = "maximum number of rows to return")]
     limit: i64,
 }
 
@@ -150,10 +216,14 @@ struct ListAlertsArgs {
     #[command(flatten)]
     output: OutputArgs,
 
-    #[arg(long, default_value_t = 50)]
+    #[arg(
+        long,
+        default_value_t = 50,
+        help = "maximum number of alerts to return"
+    )]
     limit: i64,
 
-    #[arg(long, value_parser = parse_alert_status)]
+    #[arg(long, value_parser = parse_alert_status, help = "filter alerts by lifecycle status")]
     status: Option<AlertStatus>,
 }
 

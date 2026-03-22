@@ -1,7 +1,7 @@
 // AuthorizeIoTDevices boundary: admin device management
 // register, update, and revoke IoT sensor devices
 
-import { devices, auditLogs } from '@scemas/db/schema'
+import { devices } from '@scemas/db/schema'
 import { RegisterDeviceSchema, UpdateDeviceSchema } from '@scemas/types'
 import { TRPCError } from '@trpc/server'
 import { desc, eq } from 'drizzle-orm'
@@ -13,6 +13,7 @@ import { router, adminProcedure } from '../trpc'
 export const devicesRouter = router({
   list: adminProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db.query.devices.findMany({ orderBy: [desc(devices.registeredAt)] })
+    // oxlint-disable-next-line no-map-spread
     return rows.map(d => ({ ...d, zoneName: formatZoneName(d.zone) }))
   }),
 
