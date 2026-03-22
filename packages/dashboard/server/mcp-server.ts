@@ -127,8 +127,8 @@ export function createMcpServer() {
       description:
         'acknowledge an environmental alert. pass the accountId of the operator performing the action.',
       inputSchema: schema({
-        alertId: z.string().uuid().describe('alert UUID to acknowledge'),
-        accountId: z.string().uuid().describe('account UUID of the operator'),
+        alertId: z.uuid().describe('alert UUID to acknowledge'),
+        accountId: z.uuid().describe('account UUID of the operator'),
       }),
     },
     async ({ alertId, accountId }) => {
