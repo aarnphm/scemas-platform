@@ -1,5 +1,13 @@
 @startuml telemetry_management_controller
 hide empty description
+skinparam stateFontSize 24
+skinparam stateArrowFontSize 22
+
+skinparam note {
+  FontSize 20
+  BackgroundColor #FFFDE7
+  BorderColor #F9A825
+}
 
 skinparam state {
   BackgroundColor<<idle>> #F2F4F4
