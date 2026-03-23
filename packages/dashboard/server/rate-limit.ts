@@ -1,6 +1,6 @@
 import type { Database } from '@scemas/db'
 import { rateLimitHits } from '@scemas/db/schema'
-import { and, gte, eq, sql, count, lt } from 'drizzle-orm'
+import { and, gte, eq, count, lt } from 'drizzle-orm'
 
 const DEFAULT_TOKEN_LIMIT = 100
 const DEFAULT_IP_LIMIT = 30
@@ -20,31 +20,38 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const limit =
     limitPerMinute ?? (identifierType === 'token' ? DEFAULT_TOKEN_LIMIT : DEFAULT_IP_LIMIT)
-  const windowStart = new Date(Date.now() - WINDOW_SECONDS * 1000)
 
-  const [row] = await db
-    .select({ count: count() })
-    .from(rateLimitHits)
-    .where(and(eq(rateLimitHits.identifier, identifier), gte(rateLimitHits.hitAt, windowStart)))
+  try {
+    const windowStart = new Date(Date.now() - WINDOW_SECONDS * 1000)
 
-  const currentCount = row?.count ?? 0
+    const [row] = await db
+      .select({ count: count() })
+      .from(rateLimitHits)
+      .where(and(eq(rateLimitHits.identifier, identifier), gte(rateLimitHits.hitAt, windowStart)))
 
-  if (currentCount >= limit) {
-    return { allowed: false, retryAfterSeconds: WINDOW_SECONDS, limit }
+    const currentCount = row?.count ?? 0
+
+    if (currentCount >= limit) {
+      return { allowed: false, retryAfterSeconds: WINDOW_SECONDS, limit }
+    }
+
+    await db.insert(rateLimitHits).values({ identifier, identifierType, endpoint })
+
+    // probabilistic cleanup of old rows
+    if (Math.random() < CLEANUP_PROBABILITY) {
+      const cutoff = new Date(Date.now() - 5 * 60 * 1000)
+      db.delete(rateLimitHits)
+        .where(lt(rateLimitHits.hitAt, cutoff))
+        .execute()
+        .catch(() => {})
+    }
+
+    return { allowed: true, remaining: limit - currentCount - 1, limit }
+  } catch {
+    // graceful degradation: if rate_limit_hits table doesn't exist or query fails,
+    // allow the request through. rate limiting should never block valid requests.
+    return { allowed: true, remaining: limit, limit }
   }
-
-  await db.insert(rateLimitHits).values({ identifier, identifierType, endpoint })
-
-  // probabilistic cleanup of old rows
-  if (Math.random() < CLEANUP_PROBABILITY) {
-    const cutoff = new Date(Date.now() - 5 * 60 * 1000)
-    db.delete(rateLimitHits)
-      .where(lt(rateLimitHits.hitAt, cutoff))
-      .execute()
-      .catch(() => {})
-  }
-
-  return { allowed: true, remaining: limit - currentCount - 1, limit }
 }
 
 export function createRateLimitExceededResponse(

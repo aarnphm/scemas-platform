@@ -169,6 +169,24 @@ enum TokenCommands {
 struct OutputArgs {
     #[arg(long, value_enum, default_value_t = OutputFormat::Text, help = "render output as text or json")]
     output: OutputFormat,
+
+    #[arg(long, conflicts_with_all = ["output", "raw"], help = "shorthand for --output json")]
+    json: bool,
+
+    #[arg(long, conflicts_with_all = ["output", "json"], help = "shorthand for --output text")]
+    raw: bool,
+}
+
+impl OutputArgs {
+    fn format(&self) -> OutputFormat {
+        if self.json {
+            OutputFormat::Json
+        } else if self.raw {
+            OutputFormat::Text
+        } else {
+            self.output
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
@@ -574,7 +592,7 @@ async fn handle_health(args: HealthArgs) -> Result<(), CliError> {
     match backend {
         Backend::Remote(client) => {
             let status: serde_json::Value = client.get_json("/api/v1/status").await?;
-            print_output(args.output.output, &status, |v| {
+            print_output(args.output.format(), &status, |v| {
                 format!(
                     "zones reporting={}/{} generated={}",
                     v.get("zonesReporting")
@@ -607,7 +625,7 @@ async fn handle_health(args: HealthArgs) -> Result<(), CliError> {
                 platform_status: rows.into_iter().map(PlatformStatusView::from).collect(),
             };
 
-            print_output(args.output.output, &report, |value| {
+            print_output(args.output.format(), &report, |value| {
                 let latest_status = value
                     .platform_status
                     .first()
@@ -638,7 +656,7 @@ async fn handle_rules(command: RuleCommands) -> Result<(), CliError> {
             Backend::Remote(client) => {
                 let rules: Vec<RemoteRule> =
                     serde_json::from_value(client.get_json("/api/v1/rules").await?)?;
-                print_output(args.output.output, &rules, |value| {
+                print_output(args.output.format(), &rules, |value| {
                     if value.is_empty() {
                         return "no rules found".to_owned();
                     }
@@ -675,7 +693,7 @@ async fn handle_rules(command: RuleCommands) -> Result<(), CliError> {
                     .map(TryInto::try_into)
                     .collect::<Result<Vec<ThresholdRule>, CliError>>()?;
 
-                print_output(args.output.output, &rules, |value| {
+                print_output(args.output.format(), &rules, |value| {
                     format_rule_list(value.as_slice())
                 })
             }
@@ -696,7 +714,7 @@ async fn handle_rules(command: RuleCommands) -> Result<(), CliError> {
                 )
                 .await?;
 
-            print_output(args.output.output, &rule, |value| {
+            print_output(args.output.format(), &rule, |value| {
                 format!(
                     "created rule {} {} {} {} {}",
                     value.id,
@@ -724,7 +742,7 @@ async fn handle_rules(command: RuleCommands) -> Result<(), CliError> {
                 )
                 .await?;
 
-            print_output(args.output.output, &rule, |value| {
+            print_output(args.output.format(), &rule, |value| {
                 format!(
                     "edited rule {} now {} {}",
                     value.id, value.metric_type, value.comparison
@@ -747,7 +765,7 @@ async fn handle_rules(command: RuleCommands) -> Result<(), CliError> {
                 action: format!("set status to {}", args.status),
             };
 
-            print_output(args.output.output, &response, |value| {
+            print_output(args.output.format(), &response, |value| {
                 format!("rule {} {}", value.id, value.action)
             })
         }
@@ -767,7 +785,7 @@ async fn handle_rules(command: RuleCommands) -> Result<(), CliError> {
                 action: "deleted".to_owned(),
             };
 
-            print_output(args.output.output, &response, |value| {
+            print_output(args.output.format(), &response, |value| {
                 format!("rule {} {}", value.id, value.action)
             })
         }
@@ -787,7 +805,7 @@ async fn handle_alerts(command: AlertCommands) -> Result<(), CliError> {
                 let alerts: Vec<RemoteAlert> = serde_json::from_value(
                     client.get_json(&format!("/api/v1/alerts{query}")).await?,
                 )?;
-                print_output(args.output.output, &alerts, |value| {
+                print_output(args.output.format(), &alerts, |value| {
                     if value.is_empty() {
                         return "no alerts found".to_owned();
                     }
@@ -839,7 +857,7 @@ async fn handle_alerts(command: AlertCommands) -> Result<(), CliError> {
                     .map(TryInto::try_into)
                     .collect::<Result<Vec<AlertView>, CliError>>()?;
 
-                print_output(args.output.output, &alerts, |value| {
+                print_output(args.output.format(), &alerts, |value| {
                     format_alert_list(value.as_slice())
                 })
             }
@@ -857,7 +875,7 @@ async fn handle_alerts(command: AlertCommands) -> Result<(), CliError> {
                     id: args.id,
                     action: "acknowledged".to_owned(),
                 };
-                print_output(args.output.output, &response, |value| {
+                print_output(args.output.format(), &response, |value| {
                     format!("alert {} {}", value.id, value.action)
                 })
             }
@@ -871,7 +889,7 @@ async fn handle_alerts(command: AlertCommands) -> Result<(), CliError> {
                     id: args.id,
                     action: "acknowledged".to_owned(),
                 };
-                print_output(args.output.output, &response, |value| {
+                print_output(args.output.format(), &response, |value| {
                     format!("alert {} {}", value.id, value.action)
                 })
             }
@@ -889,7 +907,7 @@ async fn handle_alerts(command: AlertCommands) -> Result<(), CliError> {
                     id: args.id,
                     action: "resolved".to_owned(),
                 };
-                print_output(args.output.output, &response, |value| {
+                print_output(args.output.format(), &response, |value| {
                     format!("alert {} {}", value.id, value.action)
                 })
             }
@@ -903,7 +921,7 @@ async fn handle_alerts(command: AlertCommands) -> Result<(), CliError> {
                     id: args.id,
                     action: "resolved".to_owned(),
                 };
-                print_output(args.output.output, &response, |value| {
+                print_output(args.output.format(), &response, |value| {
                     format!("alert {} {}", value.id, value.action)
                 })
             }
@@ -921,7 +939,7 @@ async fn handle_tokens(command: TokenCommands) -> Result<(), CliError> {
                 .create_api_token(args.account_id, &args.label, args.scopes)
                 .await?;
 
-            print_output(args.output.output, &response, |value| {
+            print_output(args.output.format(), &response, |value| {
                 format!(
                     "created token {} ({}) expiring {}",
                     value.prefix,
@@ -1530,6 +1548,7 @@ fn exit_code_string(status: &ExitStatus) -> String {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct SuccessResponse {
     success: bool,
     id: Uuid,
@@ -1537,12 +1556,14 @@ struct SuccessResponse {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct HealthReport {
     ingestion_counters: IngestionCounters,
     platform_status: Vec<PlatformStatusView>,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct IngestionCounters {
     total_received: u64,
     total_accepted: u64,
@@ -1560,6 +1581,7 @@ struct PlatformStatusRow {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct PlatformStatusView {
     subsystem: String,
     status: String,
@@ -1624,6 +1646,7 @@ struct AlertRow {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct AlertView {
     id: Uuid,
     rule_id: Option<Uuid>,

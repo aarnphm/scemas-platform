@@ -35,7 +35,9 @@ export const healthRouter = router({
         return { status: 'error' as const, message: 'rust engine unreachable' }
       }
 
-      return { status: 'ok' as const, ...(isRecord(data) ? data : {}) }
+      // /internal/health returns { counters: { ... }, lifecycle: { ... } }
+      const counters = isRecord(data) && isRecord(data.counters) ? data.counters : {}
+      return { status: 'ok' as const, ...counters }
     } catch {
       return { status: 'error' as const, message: 'rust engine not running' }
     }

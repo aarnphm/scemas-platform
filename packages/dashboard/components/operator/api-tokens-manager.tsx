@@ -247,53 +247,53 @@ function TokenRow({
   revoking: boolean
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-1.5 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <code className="font-mono text-xs text-foreground/80">{token.prefix}</code>
           <span className="truncate text-xs text-muted-foreground">{token.label}</span>
         </div>
-        <div className="mt-0.5 flex items-center gap-3 text-[11px] tabular-nums text-muted-foreground/60">
-          {token.accountUsername && <span>{token.accountUsername}</span>}
-          <span>created {formatDate(token.createdAt)}</span>
-          <span>expires {formatDate(token.expiresAt)}</span>
-          {token.lastUsedAt && <span>used {formatDate(token.lastUsedAt)}</span>}
+        <div className="flex shrink-0 items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                aria-label="token details"
+                className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                type="button"
+              >
+                <svg className="size-4" fill="currentColor" viewBox="0 0 16 16">
+                  <circle cx="4" cy="8" r="1.5" />
+                  <circle cx="8" cy="8" r="1.5" />
+                  <circle cx="12" cy="8" r="1.5" />
+                </svg>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-40">
+              <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                scopes
+              </DropdownMenuLabel>
+              <div className="flex flex-wrap gap-1.5 px-2 pb-2">
+                {token.scopes.map((s: string) => (
+                  <span
+                    className="rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
+                    key={s}
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button disabled={revoking} onClick={onRevoke} size="xs" variant="outline">
+            revoke
+          </Button>
         </div>
       </div>
-      <div className="flex items-center gap-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              aria-label="token details"
-              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-              type="button"
-            >
-              <svg className="size-4" fill="currentColor" viewBox="0 0 16 16">
-                <circle cx="4" cy="8" r="1.5" />
-                <circle cx="8" cy="8" r="1.5" />
-                <circle cx="12" cy="8" r="1.5" />
-              </svg>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-40">
-            <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
-              scopes
-            </DropdownMenuLabel>
-            <div className="flex flex-wrap gap-1.5 px-2 pb-2">
-              {token.scopes.map((s: string) => (
-                <span
-                  className="rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
-                  key={s}
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button disabled={revoking} onClick={onRevoke} size="xs" variant="outline">
-          revoke
-        </Button>
+      <div className="flex items-center gap-4 text-[11px] tabular-nums text-muted-foreground/60">
+        {token.accountUsername && <span>{token.accountUsername}</span>}
+        <span>created {formatDate(token.createdAt)}</span>
+        <span>expires {formatDate(token.expiresAt)}</span>
+        {token.lastUsedAt && <span>used {formatDate(token.lastUsedAt)}</span>}
       </div>
     </div>
   )
