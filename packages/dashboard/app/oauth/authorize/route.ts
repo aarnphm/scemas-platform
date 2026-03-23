@@ -65,9 +65,9 @@ export async function GET(request: Request): Promise<Response> {
     )
   }
 
-  const validScopes = ['read', 'write:operator', 'write:admin']
+  const validScopes = new Set(['read', 'write:operator', 'write:admin'])
   const requestedScopes = scope.split(' ').filter(Boolean)
-  if (!requestedScopes.every(s => validScopes.includes(s))) {
+  if (!requestedScopes.every(s => validScopes.has(s))) {
     return Response.json(
       { error: 'invalid_scope', error_description: 'unknown scope requested' },
       { status: 400 },

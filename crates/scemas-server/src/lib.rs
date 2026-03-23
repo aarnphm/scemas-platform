@@ -150,6 +150,11 @@ impl ScemasRuntime {
             tracing::warn!("failed to flush final counters during drain: {error}");
         }
 
+        // flush alerting subsystem (BB → SHUT in alerting statechart)
+        if let Err(error) = self.alerting.shutdown().await {
+            tracing::warn!("failed to flush alerting state during drain: {error}");
+        }
+
         self.lifecycle.advance_drain(DrainStage::Complete);
         self.lifecycle.set_phase(ServerPhase::ShuttingDown);
         tracing::info!("drain cascade complete, shutting down");

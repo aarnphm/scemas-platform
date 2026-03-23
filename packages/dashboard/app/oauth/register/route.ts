@@ -40,9 +40,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   for (const uri of redirectUris) {
-    try {
-      new URL(uri)
-    } catch {
+    if (!URL.canParse(uri)) {
       return Response.json(
         { error: 'invalid_client_metadata', error_description: `invalid redirect_uri: ${uri}` },
         { status: 400 },

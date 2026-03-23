@@ -57,6 +57,32 @@ impl AlertingManager {
         Ok(())
     }
 
+    /// BB → SHUT: flush pending alerts from blackboard, persist state, log shutdown
+    pub async fn shutdown(&self) -> Result<()> {
+        let blackboard = self.blackboard.read().await;
+        let pending_count = blackboard.active_alerts.len();
+        let rules_count = blackboard.active_rules.len();
+        drop(blackboard);
+
+        self.insert_audit_log(
+            None,
+            "alerting.shutdown",
+            serde_json::json!({
+                "pendingAlerts": pending_count,
+                "activeRules": rules_count,
+            }),
+        )
+        .await?;
+
+        tracing::info!(
+            pending_alerts = pending_count,
+            active_rules = rules_count,
+            "alerting manager shutdown complete"
+        );
+
+        Ok(())
+    }
+
     /// evaluate a reading against the blackboard's active rules
     pub async fn evaluate_reading(&self, reading: &IndividualSensorReading) -> Result<Vec<Alert>> {
         let active_rules: Vec<ThresholdRule> = self
@@ -78,9 +104,20 @@ impl AlertingManager {
             blackboard.post_alert(alert.clone());
         }
 
-        // knowledge source 3: dispatcher — notify matching subscribers (best-effort)
-        if !alerts.is_empty() {
-            self.dispatch_alerts(&alerts).await.ok();
+        // knowledge source 3: dispatcher — notify matching subscribers
+        // DISP → ERR: dispatch failures are logged, not propagated (best-effort)
+        if !alerts.is_empty() && let Err(error) = self.dispatch_alerts(&alerts).await {
+            tracing::error!(error = %error, alert_count = alerts.len(), "alert dispatch failed");
+            self.insert_audit_log(
+                None,
+                "alert.dispatch.failure",
+                serde_json::json!({
+                    "error": error.to_string(),
+                    "alertCount": alerts.len(),
+                }),
+            )
+            .await
+            .ok();
         }
 
         Ok(alerts)

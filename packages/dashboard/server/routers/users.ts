@@ -17,7 +17,7 @@ export const usersRouter = router({
   }),
 
   get: adminProcedure
-    .input(z.object({ userId: z.string().uuid() }))
+    .input(z.object({ userId: z.uuid() }))
     .query(async ({ input, ctx }) => {
       const account = await ctx.db.query.accounts.findFirst({
         where: eq(accounts.id, input.userId),
@@ -76,7 +76,7 @@ export const usersRouter = router({
   }),
 
   updateRole: adminProcedure
-    .input(z.object({ userId: z.string().uuid(), role: RoleSchema }))
+    .input(z.object({ userId: z.uuid(), role: RoleSchema }))
     .mutation(async ({ input, ctx }) => {
       await ctx.db
         .update(accounts)
@@ -127,7 +127,7 @@ export const usersRouter = router({
     }),
 
   resetPassword: adminProcedure
-    .input(z.object({ userId: z.string().uuid(), newPassword: z.string().min(8) }))
+    .input(z.object({ userId: z.uuid(), newPassword: z.string().min(8) }))
     .mutation(async ({ input, ctx }) => {
       const { status, data } = await callRustEndpoint('/internal/auth/reset-password', {
         method: 'POST',
@@ -198,7 +198,7 @@ export const usersRouter = router({
     }),
 
   delete: adminProcedure
-    .input(z.object({ userId: z.string().uuid() }))
+    .input(z.object({ userId: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       if (input.userId === ctx.user.id) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'cannot delete your own account' })
