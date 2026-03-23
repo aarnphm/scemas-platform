@@ -106,7 +106,9 @@ impl AlertingManager {
 
         // knowledge source 3: dispatcher — notify matching subscribers
         // DISP → ERR: dispatch failures are logged, not propagated (best-effort)
-        if !alerts.is_empty() && let Err(error) = self.dispatch_alerts(&alerts).await {
+        if !alerts.is_empty()
+            && let Err(error) = self.dispatch_alerts(&alerts).await
+        {
             tracing::error!(error = %error, alert_count = alerts.len(), "alert dispatch failed");
             self.insert_audit_log(
                 None,

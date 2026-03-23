@@ -57,7 +57,7 @@ export const SensorReadingSchema = z.object({
 export type SensorReading = z.infer<typeof SensorReadingSchema>
 
 export const UserInformationSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   username: z.string(),
   email: z.string().email(),
   role: RoleSchema,
@@ -66,7 +66,7 @@ export type UserInformation = z.infer<typeof UserInformationSchema>
 
 export const ActiveSessionTokenSchema = z.object({
   tokenValue: z.string().min(1),
-  userId: z.string().uuid(),
+  userId: z.uuid(),
   role: RoleSchema,
   expiry: z.string().datetime(),
 })
@@ -80,7 +80,7 @@ export const AuthSessionSchema = z.object({
 export type AuthSession = z.infer<typeof AuthSessionSchema>
 
 export const ThresholdRuleSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   metricType: MetricTypeSchema,
   thresholdValue: z.number(),
   comparison: ComparisonSchema,
@@ -98,8 +98,8 @@ export const CreateThresholdRuleSchema = z.object({
 export type CreateThresholdRule = z.infer<typeof CreateThresholdRuleSchema>
 
 export const AlertSchema = z.object({
-  id: z.string().uuid(),
-  ruleId: z.string().uuid(),
+  id: z.uuid(),
+  ruleId: z.uuid(),
   sensorId: z.string(),
   severity: SeveritySchema,
   status: AlertStatusSchema,
@@ -107,14 +107,14 @@ export const AlertSchema = z.object({
   zone: z.string(),
   metricType: MetricTypeSchema,
   createdAt: z.string().datetime(),
-  acknowledgedBy: z.string().uuid().nullable().optional(),
+  acknowledgedBy: z.uuid().nullable().optional(),
   acknowledgedAt: z.string().datetime().nullable().optional(),
 })
 export type Alert = z.infer<typeof AlertSchema>
 
 export const AlertSubscriptionSchema = z.object({
-  id: z.string().uuid(),
-  userId: z.string().uuid(),
+  id: z.uuid(),
+  userId: z.uuid(),
   metricTypes: z.array(MetricTypeSchema),
   zones: z.array(z.string()),
   minSeverity: SeveritySchema,
@@ -149,7 +149,7 @@ export const CreateAccountSchema = z.object({
 export type CreateAccount = z.infer<typeof CreateAccountSchema>
 
 export const UpdateAccountDetailsSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.uuid(),
   username: z.string().min(3).max(50),
   email: z.string().email(),
 })
@@ -262,10 +262,10 @@ export const CreateApiTokenSchema = z.object({
 export type CreateApiToken = z.infer<typeof CreateApiTokenSchema>
 
 export const ApiTokenSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   prefix: z.string(),
   label: z.string(),
-  accountId: z.string().uuid(),
+  accountId: z.uuid(),
   accountUsername: z.string().optional(),
   scopes: z.array(TokenScopeSchema),
   expiresAt: z.string().datetime(),
@@ -276,7 +276,7 @@ export const ApiTokenSchema = z.object({
 export type ApiToken = z.infer<typeof ApiTokenSchema>
 
 export const CreateApiTokenResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   token: z.string(),
   prefix: z.string(),
   label: z.string(),
@@ -304,14 +304,14 @@ export const CreateHazardReportSchema = z.object({
 export type CreateHazardReport = z.infer<typeof CreateHazardReportSchema>
 
 export const HazardReportSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   zone: z.string(),
   category: HazardReportCategorySchema,
   description: z.string(),
   status: HazardReportStatusSchema,
   contactEmail: z.string().email().nullable().optional(),
-  reportedBy: z.string().uuid().nullable().optional(),
-  reviewedBy: z.string().uuid().nullable().optional(),
+  reportedBy: z.uuid().nullable().optional(),
+  reviewedBy: z.uuid().nullable().optional(),
   reviewNote: z.string().nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -320,7 +320,7 @@ export const HazardReportSchema = z.object({
 export type HazardReport = z.infer<typeof HazardReportSchema>
 
 export const UpdateHazardReportStatusSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   status: HazardReportStatusSchema,
   reviewNote: z.string().max(500).nullable().optional(),
 })

@@ -5,6 +5,7 @@ use scemas_core::lifecycle::LifecycleState;
 use scemas_telemetry::controller::TelemetryManager;
 use scemas_telemetry::health::IngestionHealth;
 use std::sync::Arc;
+use tokio::sync::Notify;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -14,4 +15,5 @@ pub struct AppState {
     pub alerting: Arc<AlertingManager>,
     pub health: Arc<IngestionHealth>,
     pub lifecycle: LifecycleState,
+    pub drain_signal: Arc<Notify>,
 }

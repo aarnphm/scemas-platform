@@ -10,6 +10,7 @@ use scemas_telemetry::controller::TelemetryManager;
 use scemas_telemetry::health::IngestionHealth;
 use sqlx::PgPool;
 use std::sync::Arc;
+use tokio::sync::Notify;
 
 use crate::access::AccessManager;
 use crate::distribution::DataDistributionManager;
@@ -36,11 +37,13 @@ pub struct ScemasRuntime {
     pub alerting: Arc<AlertingManager>,
     pub health: Arc<IngestionHealth>,
     pub lifecycle: LifecycleState,
+    pub drain_signal: Arc<Notify>,
 }
 
 impl ScemasRuntime {
     pub async fn from_config(config: &Config) -> Result<Self, RuntimeError> {
         let lifecycle = LifecycleState::new();
+        let drain_signal = Arc::new(Notify::new());
 
         let pool = PgPool::connect(&config.database_url).await?;
         tracing::info!("connected to database");
@@ -58,7 +61,11 @@ impl ScemasRuntime {
             .await?;
         tracing::info!(registered_devices, "device registry synchronized");
 
-        let distribution = DataDistributionManager::new(pool.clone());
+        let distribution = DataDistributionManager::new(
+            pool.clone(),
+            lifecycle.clone(),
+            Arc::clone(&drain_signal),
+        );
         let telemetry = TelemetryManager::new(pool.clone());
         let alerting = AlertingManager::new(pool.clone());
 
@@ -89,6 +96,7 @@ impl ScemasRuntime {
                 base_rejected,
             )),
             lifecycle,
+            drain_signal,
         })
     }
 
@@ -100,6 +108,7 @@ impl ScemasRuntime {
             alerting: Arc::clone(&self.alerting),
             health: Arc::clone(&self.health),
             lifecycle: self.lifecycle.clone(),
+            drain_signal: Arc::clone(&self.drain_signal),
         }
     }
 

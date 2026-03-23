@@ -2,6 +2,12 @@ import type { ZodType } from 'zod'
 import { z } from 'zod'
 import { validateToken, hasScope } from './api-tokens'
 import { getDb } from './cached'
+import {
+  checkRateLimit,
+  createRateLimitExceededResponse,
+  getClientIp,
+  rateLimitHeaders,
+} from './rate-limit'
 
 type PublicCachePolicy = 'live' | 'trend' | 'metadata'
 
@@ -11,10 +17,16 @@ const publicCacheControlByPolicy: Record<PublicCachePolicy, string> = {
   metadata: 'public, max-age=3600, stale-while-revalidate=86400',
 }
 
-export function createPublicApiResponse(payload: unknown, policy: PublicCachePolicy): Response {
-  return Response.json(payload, {
-    headers: { 'Cache-Control': publicCacheControlByPolicy[policy] },
-  })
+export function createPublicApiResponse(
+  payload: unknown,
+  policy: PublicCachePolicy,
+  rateLimit?: { remaining: number; limit: number },
+): Response {
+  const headers: Record<string, string> = {
+    'Cache-Control': publicCacheControlByPolicy[policy],
+    ...(rateLimit ? rateLimitHeaders(rateLimit.remaining, rateLimit.limit) : {}),
+  }
+  return Response.json(payload, { headers })
 }
 
 export function createPublicApiBadRequestResponse(message: string): Response {
@@ -55,7 +67,8 @@ export async function withScopedAuth(
   requiredScope: string,
   handler: (auth: ScopedAuthResult) => Promise<Response>,
 ): Promise<Response> {
-  const result = await validateToken(getDb(), request.headers.get('authorization'))
+  const db = getDb()
+  const result = await validateToken(db, request.headers.get('authorization'))
   if (!result.valid) {
     return Response.json({ error: result.error }, { status: result.status })
   }
@@ -67,6 +80,12 @@ export async function withScopedAuth(
     )
   }
 
+  // RLC: rate limit check per token
+  const rateCheck = await checkRateLimit(db, result.tokenId, 'token', new URL(request.url).pathname)
+  if (!rateCheck.allowed) {
+    return createRateLimitExceededResponse(rateCheck.retryAfterSeconds, rateCheck.limit)
+  }
+
   return handler({ tokenId: result.tokenId, accountId: result.accountId, scopes: result.scopes })
 }
 
@@ -75,4 +94,16 @@ export async function withApiTokenAuth(
   handler: () => Promise<Response>,
 ): Promise<Response> {
   return withScopedAuth(request, 'read', () => handler())
+}
+
+export async function withPublicRateLimit(
+  request: Request,
+  handler: () => Promise<Response>,
+): Promise<Response> {
+  const ip = await getClientIp(request)
+  const rateCheck = await checkRateLimit(getDb(), ip, 'ip', new URL(request.url).pathname)
+  if (!rateCheck.allowed) {
+    return createRateLimitExceededResponse(rateCheck.retryAfterSeconds, rateCheck.limit)
+  }
+  return handler()
 }

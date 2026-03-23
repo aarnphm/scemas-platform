@@ -1,24 +1,37 @@
 use chrono::{DateTime, TimeZone, Utc};
 use scemas_core::error::{Error, Result};
+use scemas_core::lifecycle::LifecycleState;
 use scemas_core::models::IndividualSensorReading;
 use sqlx::PgPool;
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, Ordering};
 use std::time::Instant;
+use tokio::sync::Notify;
 
 const HEALTH_SNAPSHOT_INTERVAL_SECONDS: i64 = 60;
+const CRITICAL_ERROR_RATE: f64 = 0.20;
+const CRITICAL_SNAPSHOTS_BEFORE_DRAIN: u32 = 3;
 
 pub struct DataDistributionManager {
     db: PgPool,
     started_at: Instant,
     last_health_snapshot_at: AtomicI64,
+    consecutive_critical_snapshots: AtomicU32,
+    drain_requested: AtomicBool,
+    drain_signal: Arc<Notify>,
+    lifecycle: LifecycleState,
 }
 
 impl DataDistributionManager {
-    pub fn new(db: PgPool) -> Self {
+    pub fn new(db: PgPool, lifecycle: LifecycleState, drain_signal: Arc<Notify>) -> Self {
         Self {
             db,
             started_at: Instant::now(),
             last_health_snapshot_at: AtomicI64::new(0),
+            consecutive_critical_snapshots: AtomicU32::new(0),
+            drain_requested: AtomicBool::new(false),
+            drain_signal,
+            lifecycle,
         }
     }
 
@@ -151,6 +164,41 @@ impl DataDistributionManager {
                 tracing::warn!("failed to flush ingestion counters: {e}");
             })
             .ok();
+
+        // ERR → DRAIN: escalate to drain if error rate is critically high for sustained period
+        if error_rate > CRITICAL_ERROR_RATE {
+            let count = self
+                .consecutive_critical_snapshots
+                .fetch_add(1, Ordering::Relaxed)
+                + 1;
+            if count >= CRITICAL_SNAPSHOTS_BEFORE_DRAIN
+                && !self.drain_requested.swap(true, Ordering::AcqRel)
+                && !self.lifecycle.phase().is_draining()
+            {
+                tracing::error!(
+                    error_rate,
+                    consecutive_snapshots = count,
+                    "critical error rate sustained, triggering auto-drain"
+                );
+                sqlx::query(
+                    "INSERT INTO audit_logs (user_id, action, details) VALUES (NULL, $1, $2)",
+                )
+                .bind("system.auto_drain")
+                .bind(serde_json::json!({
+                    "errorRate": error_rate,
+                    "consecutiveSnapshots": count,
+                    "totalReceived": total_received,
+                    "totalRejected": total_rejected,
+                }))
+                .execute(&self.db)
+                .await
+                .ok();
+                self.drain_signal.notify_one();
+            }
+        } else {
+            self.consecutive_critical_snapshots
+                .store(0, Ordering::Relaxed);
+        }
 
         Ok(())
     }

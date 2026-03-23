@@ -120,12 +120,10 @@ export const alertsRouter = router({
     }),
 
   // get single alert by id
-  get: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input, ctx }) => {
-      const alert = await ctx.db.query.alerts.findFirst({ where: eq(alerts.id, input.id) })
-      return alert ? { ...alert, zone: normalizeZoneId(alert.zone, alert.sensorId) } : null
-    }),
+  get: protectedProcedure.input(z.object({ id: z.uuid() })).query(async ({ input, ctx }) => {
+    const alert = await ctx.db.query.alerts.findFirst({ where: eq(alerts.id, input.id) })
+    return alert ? { ...alert, zone: normalizeZoneId(alert.zone, alert.sensorId) } : null
+  }),
 
   // alert frequency: count by hour grouped by severity (for charts)
   frequency: protectedProcedure
@@ -152,7 +150,7 @@ export const alertsRouter = router({
 
   // acknowledge an alert (lifecycle: active → acknowledged)
   acknowledge: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       const result = await acknowledgeAlert(input.id, ctx.user.id)
       if (!result.success) {
@@ -162,19 +160,17 @@ export const alertsRouter = router({
     }),
 
   // resolve an alert (lifecycle: acknowledged → resolved)
-  resolve: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input, ctx }) => {
-      const result = await resolveAlert(input.id, ctx.user.id)
-      if (!result.success) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: result.error })
-      }
-      return { success: true as const }
-    }),
+  resolve: protectedProcedure.input(z.object({ id: z.uuid() })).mutation(async ({ input, ctx }) => {
+    const result = await resolveAlert(input.id, ctx.user.id)
+    if (!result.success) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: result.error })
+    }
+    return { success: true as const }
+  }),
 
   // batch resolve (max 50 at a time, single rust round-trip)
   batchResolve: protectedProcedure
-    .input(z.object({ ids: z.array(z.string().uuid()).min(1).max(50) }))
+    .input(z.object({ ids: z.array(z.uuid()).min(1).max(50) }))
     .mutation(async ({ input, ctx }) => {
       const result = await batchResolveAlerts(input.ids, ctx.user.id)
       return { resolved: result.transitioned, failed: result.failed }
@@ -182,7 +178,7 @@ export const alertsRouter = router({
 
   // batch acknowledge (max 50 at a time, single rust round-trip)
   batchAcknowledge: protectedProcedure
-    .input(z.object({ ids: z.array(z.string().uuid()).min(1).max(50) }))
+    .input(z.object({ ids: z.array(z.uuid()).min(1).max(50) }))
     .mutation(async ({ input, ctx }) => {
       const result = await batchAcknowledgeAlerts(input.ids, ctx.user.id)
       return { acknowledged: result.transitioned, failed: result.failed }

@@ -84,7 +84,7 @@ export const apiTokensRouter = router({
   }),
 
   revoke: protectedProcedure
-    .input(z.object({ tokenId: z.string().uuid() }))
+    .input(z.object({ tokenId: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       const token = await ctx.db.query.apiTokens.findFirst({
         where: eq(apiTokens.id, input.tokenId),

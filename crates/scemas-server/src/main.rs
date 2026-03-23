@@ -15,9 +15,15 @@ async fn main() -> Result<(), RuntimeError> {
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
     let drain_runtime = runtime.clone();
+    let drain_notify = runtime.drain_signal.clone();
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
-            shutdown_signal().await;
+            tokio::select! {
+                () = shutdown_signal() => {},
+                () = drain_notify.notified() => {
+                    tracing::warn!("auto-drain triggered by sustained critical error rate");
+                },
+            }
             drain_runtime.drain().await;
         })
         .await?;

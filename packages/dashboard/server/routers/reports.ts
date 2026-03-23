@@ -73,11 +73,9 @@ export const reportsRouter = router({
       })
     }),
 
-  get: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input, ctx }) => {
-      return ctx.db.query.hazardReports.findFirst({ where: eq(hazardReports.id, input.id) })
-    }),
+  get: protectedProcedure.input(z.object({ id: z.uuid() })).query(async ({ input, ctx }) => {
+    return ctx.db.query.hazardReports.findFirst({ where: eq(hazardReports.id, input.id) })
+  }),
 
   updateStatus: adminProcedure
     .input(UpdateHazardReportStatusSchema)

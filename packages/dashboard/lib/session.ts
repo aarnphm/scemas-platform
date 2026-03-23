@@ -4,7 +4,7 @@ import { z } from 'zod'
 const JwtHeaderSchema = z.object({ alg: z.literal('HS256'), typ: z.string().optional() })
 
 const SessionClaimsSchema = z.object({
-  sub: z.string().uuid(),
+  sub: z.uuid(),
   role: RoleSchema,
   exp: z.number().int().positive(),
 })

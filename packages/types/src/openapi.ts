@@ -181,9 +181,7 @@ registry.registerPath({
   summary: 'acknowledge alert',
   description: 'transition alert to acknowledged state. requires write:operator scope.',
   security: [{ [apiTokenScheme.name]: [] }],
-  request: {
-    params: z.object({ alertId: z.string().uuid().openapi({ description: 'alert id' }) }),
-  },
+  request: { params: z.object({ alertId: z.uuid().openapi({ description: 'alert id' }) }) },
   responses: {
     200: {
       description: 'acknowledgement result',
@@ -202,9 +200,7 @@ registry.registerPath({
   summary: 'resolve alert',
   description: 'transition alert to resolved state. requires write:operator scope.',
   security: [{ [apiTokenScheme.name]: [] }],
-  request: {
-    params: z.object({ alertId: z.string().uuid().openapi({ description: 'alert id' }) }),
-  },
+  request: { params: z.object({ alertId: z.uuid().openapi({ description: 'alert id' }) }) },
   responses: {
     200: {
       description: 'resolution result',

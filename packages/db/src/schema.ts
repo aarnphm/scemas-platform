@@ -341,3 +341,20 @@ export const platformStatus = pgTable(
     subsystemTimeIdx: index('platform_status_subsystem_time_idx').on(table.subsystem, table.time),
   }),
 )
+
+export const rateLimitHits = pgTable(
+  'rate_limit_hits',
+  {
+    id: bigserial('id', { mode: 'bigint' }).primaryKey(),
+    identifier: text('identifier').notNull(),
+    identifierType: text('identifier_type').notNull(),
+    endpoint: text('endpoint').notNull(),
+    hitAt: timestamp('hit_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  table => ({
+    identifierHitAtIdx: index('rate_limit_hits_identifier_hit_at_idx').on(
+      table.identifier,
+      table.hitAt,
+    ),
+  }),
+)

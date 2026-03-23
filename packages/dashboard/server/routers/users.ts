@@ -16,20 +16,18 @@ export const usersRouter = router({
     })
   }),
 
-  get: adminProcedure
-    .input(z.object({ userId: z.uuid() }))
-    .query(async ({ input, ctx }) => {
-      const account = await ctx.db.query.accounts.findFirst({
-        where: eq(accounts.id, input.userId),
-        columns: { id: true, email: true, username: true, role: true, createdAt: true },
-      })
+  get: adminProcedure.input(z.object({ userId: z.uuid() })).query(async ({ input, ctx }) => {
+    const account = await ctx.db.query.accounts.findFirst({
+      where: eq(accounts.id, input.userId),
+      columns: { id: true, email: true, username: true, role: true, createdAt: true },
+    })
 
-      if (!account) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'account not found' })
-      }
+    if (!account) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'account not found' })
+    }
 
-      return account
-    }),
+    return account
+  }),
 
   create: adminProcedure.input(CreateAccountSchema).mutation(async ({ input, ctx }) => {
     const { data, status } = await callRustEndpoint('/internal/auth/signup', {
@@ -197,32 +195,30 @@ export const usersRouter = router({
       return { success: true }
     }),
 
-  delete: adminProcedure
-    .input(z.object({ userId: z.uuid() }))
-    .mutation(async ({ input, ctx }) => {
-      if (input.userId === ctx.user.id) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'cannot delete your own account' })
-      }
+  delete: adminProcedure.input(z.object({ userId: z.uuid() })).mutation(async ({ input, ctx }) => {
+    if (input.userId === ctx.user.id) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'cannot delete your own account' })
+    }
 
-      const target = await ctx.db.query.accounts.findFirst({
-        where: eq(accounts.id, input.userId),
-        columns: { id: true, email: true, username: true },
+    const target = await ctx.db.query.accounts.findFirst({
+      where: eq(accounts.id, input.userId),
+      columns: { id: true, email: true, username: true },
+    })
+
+    if (!target) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'account not found' })
+    }
+
+    await ctx.db.delete(accounts).where(eq(accounts.id, input.userId))
+
+    await ctx.db
+      .insert(auditLogs)
+      .values({
+        userId: ctx.user.id,
+        action: 'user.deleted',
+        details: { deletedUserId: target.id, email: target.email, username: target.username },
       })
 
-      if (!target) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'account not found' })
-      }
-
-      await ctx.db.delete(accounts).where(eq(accounts.id, input.userId))
-
-      await ctx.db
-        .insert(auditLogs)
-        .values({
-          userId: ctx.user.id,
-          action: 'user.deleted',
-          details: { deletedUserId: target.id, email: target.email, username: target.username },
-        })
-
-      return { success: true }
-    }),
+    return { success: true }
+  }),
 })

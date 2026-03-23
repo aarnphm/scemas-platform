@@ -13,7 +13,7 @@ const SuccessResponseSchema = z.object({ success: z.literal(true) })
 
 const LegacyRustThresholdRuleSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     metric_type: z.enum(['temperature', 'humidity', 'air_quality', 'noise_level']),
     threshold_value: z.number(),
     comparison: z.enum(['gt', 'lt', 'gte', 'lte']),
@@ -80,7 +80,7 @@ export const rulesRouter = router({
   }),
 
   edit: adminProcedure
-    .input(CreateThresholdRuleSchema.extend({ id: z.string().uuid() }))
+    .input(CreateThresholdRuleSchema.extend({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       const { data, status } = await callRustEndpoint(`/internal/alerting/rules/${input.id}/edit`, {
         method: 'POST',
@@ -112,7 +112,7 @@ export const rulesRouter = router({
     }),
 
   update: adminProcedure
-    .input(z.object({ id: z.string().uuid(), ruleStatus: z.enum(['active', 'inactive']) }))
+    .input(z.object({ id: z.uuid(), ruleStatus: z.enum(['active', 'inactive']) }))
     .mutation(async ({ input, ctx }) => {
       const { data, status } = await callRustEndpoint(
         `/internal/alerting/rules/${input.id}/status`,
@@ -140,29 +140,27 @@ export const rulesRouter = router({
       return parsed.data
     }),
 
-  delete: adminProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input, ctx }) => {
-      const { data, status } = await callRustEndpoint(
-        `/internal/alerting/rules/${input.id}/delete`,
-        { method: 'POST', body: JSON.stringify({ deletedBy: ctx.user.id }) },
-      )
+  delete: adminProcedure.input(z.object({ id: z.uuid() })).mutation(async ({ input, ctx }) => {
+    const { data, status } = await callRustEndpoint(`/internal/alerting/rules/${input.id}/delete`, {
+      method: 'POST',
+      body: JSON.stringify({ deletedBy: ctx.user.id }),
+    })
 
-      if (status >= 400) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: extractRustErrorMessage(data) ?? 'rule deletion failed',
-        })
-      }
+    if (status >= 400) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: extractRustErrorMessage(data) ?? 'rule deletion failed',
+      })
+    }
 
-      const parsed = SuccessResponseSchema.safeParse(data)
-      if (!parsed.success) {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'rust alerting manager returned an invalid delete response',
-        })
-      }
+    const parsed = SuccessResponseSchema.safeParse(data)
+    if (!parsed.success) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'rust alerting manager returned an invalid delete response',
+      })
+    }
 
-      return parsed.data
-    }),
+    return parsed.data
+  }),
 })
