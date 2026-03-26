@@ -18,7 +18,7 @@ const REQUIRED_CONTAINER_ENV_KEYS: RequiredContainerEnvKey[] = [
 export class ScemaEngine extends Container<Env> {
   defaultPort = 3001
   requiredPorts = [3001]
-  sleepAfter = '30s'
+  sleepAfter = '5m'
   pingEndpoint = '/internal/health'
 }
 
@@ -41,7 +41,7 @@ export default {
       await container.startAndWaitForPorts({
         ports: 3001,
         startOptions: { envVars: buildContainerEnv(env) },
-        cancellationOptions: { portReadyTimeoutMS: 30_000 },
+        cancellationOptions: { portReadyTimeoutMS: 60_000 },
       })
 
       return await container.fetch(request)

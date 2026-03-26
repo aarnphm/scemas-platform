@@ -66,16 +66,18 @@ impl std::fmt::Display for ServerPhase {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum DrainStage {
-    StopIngestion = 0,
-    DrainAPIRequests = 1,
-    DrainOperatorViews = 2,
-    StopMonitoring = 3,
-    Complete = 4,
+    NotDraining = 0,
+    StopIngestion = 1,
+    DrainAPIRequests = 2,
+    DrainOperatorViews = 3,
+    StopMonitoring = 4,
+    Complete = 5,
 }
 
 impl std::fmt::Display for DrainStage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::NotDraining => write!(f, "not_draining"),
             Self::StopIngestion => write!(f, "stop_ingestion"),
             Self::DrainAPIRequests => write!(f, "drain_api_requests"),
             Self::DrainOperatorViews => write!(f, "drain_operator_views"),
@@ -113,10 +115,11 @@ impl LifecycleState {
 
     pub fn drain_stage(&self) -> DrainStage {
         match self.drain_stage.load(Ordering::Acquire) {
-            0 => DrainStage::StopIngestion,
-            1 => DrainStage::DrainAPIRequests,
-            2 => DrainStage::DrainOperatorViews,
-            3 => DrainStage::StopMonitoring,
+            0 => DrainStage::NotDraining,
+            1 => DrainStage::StopIngestion,
+            2 => DrainStage::DrainAPIRequests,
+            3 => DrainStage::DrainOperatorViews,
+            4 => DrainStage::StopMonitoring,
             _ => DrainStage::Complete,
         }
     }
