@@ -108,27 +108,6 @@ source scripts/start-scemas.sh
 cargo run -p scemas-cli -- dev desktop
 ```
 
-what happens at runtime:
-
-- `scemas dev desktop` starts the tauri app and sets `POSTGRES_BIN_DIR` for the child process when it can discover postgres locally.
-- if `SCEMAS_USE_EMBEDDED_POSTGRES=1` or unset, the desktop app first checks whether `DATABASE_URL` is already reachable. if yes, it reuses that postgres instance. if not, it starts embedded postgres from `POSTGRES_BIN_DIR`, `PATH`, or a well-known postgres 16 install location.
-- if `SCEMAS_USE_EMBEDDED_POSTGRES=0`, the desktop app skips embedded postgres and uses `DATABASE_URL` directly.
-
-examples:
-
-```sh
-# force external postgres
-export SCEMAS_USE_EMBEDDED_POSTGRES=0
-export DATABASE_URL=postgres://scemas:scemas@localhost:5432/scemas
-cargo run -p scemas-cli -- dev desktop
-
-# force a specific postgres 16 install for embedded mode
-export POSTGRES_BIN_DIR="$(brew --prefix postgresql@16)/bin"
-cargo run -p scemas-cli -- dev desktop
-```
-
-for desktop release packaging, `scripts/bundle-postgres.sh` is the step that stages postgres binaries into `crates/scemas-desktop/resources/pg/`. that is a packaging concern, not a general repo bootstrap step. ci already runs it in `.github/workflows/desktop.yml` before the tauri build.
-
 ### default accounts
 
 `bun db:push` runs `@scemas/db`'s `ensure-users` script. it creates one account per role, skips any that already exist, and uses `1234` for all three defaults.
@@ -170,7 +149,6 @@ see `.env.example`. defaults work out of the box for the web stack. desktop-spec
 | variable | default | meaning |
 |----------|---------|---------|
 | `DATABASE_URL` | `postgres://scemas:scemas@localhost:5432/scemas` | external postgres connection, used by the web stack and by desktop when embedded mode is disabled or when a local postgres is already reachable |
-| `SCEMAS_USE_EMBEDDED_POSTGRES` | `1` | desktop-only switch. `1` tries embedded postgres first, unless an external postgres is already reachable; `0` forces external postgres |
 | `POSTGRES_BIN_DIR` | unset, auto-detected | desktop-only path to a postgres 16 `bin/` directory containing `pg_ctl`, `initdb`, `postgres`, `createdb`, and `psql` |
 | `INTERNAL_RUST_URL` | `http://localhost:3001` | rust engine URL for remote auth fallback and sync. shared with dashboard. desktop also accepts legacy `SCEMAS_REMOTE_URL` |
 
@@ -311,8 +289,6 @@ xattr -cr /Applications/SCEMAS.app
 ```sh
 bash scripts/bundle-postgres.sh   # macOS/linux
 ```
-
-windows builds skip embedded postgres. windows users need external postgres via `docker-compose up -d` and `SCEMAS_USE_EMBEDDED_POSTGRES=0`.
 
 ## tech stack
 
