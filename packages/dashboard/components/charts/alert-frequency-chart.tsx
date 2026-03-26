@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import {
   ChartContainer,
@@ -9,6 +10,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { makeChartTimeFormatter } from '@/lib/chart-utils'
 
 type AlertFrequencyPoint = { hour: string; low: number; warning: number; critical: number }
 
@@ -18,23 +20,25 @@ const chartConfig = {
   critical: { label: 'critical', color: 'oklch(0.47 0.157 37.304)' },
 } satisfies ChartConfig
 
-function formatHour(isoString: string) {
-  const date = new Date(isoString)
-  return `${String(date.getHours()).padStart(2, '0')}:00`
-}
-
-export function AlertFrequencyChart({ data }: { data: AlertFrequencyPoint[] }) {
+export function AlertFrequencyChart({
+  data,
+  hours,
+}: {
+  data: AlertFrequencyPoint[]
+  hours?: number
+}) {
+  const fmt = useMemo(() => makeChartTimeFormatter(hours ?? 24), [hours])
   if (data.length === 0) {
-    return <p className="text-sm text-muted-foreground">no alerts recorded in this time window</p>
+    return <p className="text-sm text-muted-foreground text-pretty">no alerts recorded in this time window</p>
   }
 
   return (
     <ChartContainer className="h-56 w-full" config={chartConfig}>
       <BarChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="hour" tickFormatter={formatHour} tick={{ fontSize: 11 }} />
+        <XAxis dataKey="hour" tickFormatter={fmt} tick={{ fontSize: 11 }} />
         <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={32} />
-        <ChartTooltip content={<ChartTooltipContent labelFormatter={formatHour} />} />
+        <ChartTooltip content={<ChartTooltipContent labelFormatter={fmt} />} />
         <ChartLegend content={<ChartLegendContent />} />
         <Bar dataKey="low" fill="var(--color-low)" stackId="stack" />
         <Bar dataKey="warning" fill="var(--color-warning)" stackId="stack" />

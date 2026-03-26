@@ -4,6 +4,7 @@
 
 import { useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,7 +54,8 @@ export function DevicesManager() {
   const [newDeviceType, setNewDeviceType] = useState<string>('')
   const [newDeviceZone, setNewDeviceZone] = useState('')
 
-  const { data: devices, refetch } = trpc.devices.list.useQuery()
+  const devicesQuery = trpc.devices.list.useQuery()
+  const { data: devices, refetch } = devicesQuery
 
   const register = trpc.devices.register.useMutation({
     onSuccess: () => {
@@ -143,9 +145,22 @@ export function DevicesManager() {
         </form>
       ) : null}
 
-      {allDevices.length === 0 ? (
+      {devicesQuery.isLoading ? (
+        <div className="rounded-lg border border-border bg-card">
+          <div className="divide-y divide-border" style={{ minHeight: `${pageSize * 3}rem` }}>
+            {Array.from({ length: pageSize }, (_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <Skeleton className="h-5 w-14 rounded-md" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : allDevices.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-center">
-          <p className="text-sm text-muted-foreground">no devices registered</p>
+          <p className="text-sm text-muted-foreground text-pretty">no devices registered</p>
           {!showRegister ? (
             <Button variant="ghost" size="sm" onClick={() => setShowRegister(true)}>
               register first device

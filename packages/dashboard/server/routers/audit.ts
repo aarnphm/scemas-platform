@@ -33,12 +33,13 @@ export const auditRouter = router({
   }),
 
   frequency: adminProcedure
-    .input(z.object({ hours: z.number().min(1).max(168).default(24) }).optional())
+    .input(z.object({ hours: z.number().min(1).max(720).default(24) }).optional())
     .query(async ({ ctx, input }) => {
       const hours = input?.hours ?? 24
+      const bucket = hours > 168 ? 'day' : 'hour'
       const rows = await ctx.db.$client`
         SELECT
-          date_trunc('hour', created_at) as hour,
+          date_trunc(${bucket}, created_at) as hour,
           COUNT(*) FILTER (WHERE action LIKE '%success%' OR action LIKE '%created%' OR action LIKE '%updated%' OR action LIKE '%acknowledged%' OR action LIKE '%resolved%') as success,
           COUNT(*) FILTER (WHERE action LIKE '%failed%' OR action LIKE '%denied%') as errors,
           COUNT(*) as total

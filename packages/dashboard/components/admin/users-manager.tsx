@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { usePageSize } from '@/lib/settings'
 import { trpc } from '@/lib/trpc'
@@ -281,25 +282,6 @@ function ActiveSessionsPanel() {
     },
   })
 
-  if (sessionsQuery.isLoading) {
-    return (
-      <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-2">
-          <Spinner />
-          loading sessions
-        </span>
-      </div>
-    )
-  }
-
-  if (sessionsQuery.isError) {
-    return (
-      <div className="rounded-lg border border-destructive/20 bg-card p-4 text-sm text-destructive">
-        {sessionsQuery.error.message}
-      </div>
-    )
-  }
-
   const sessions = sessionsQuery.data ?? []
   const expiringCount = sessions.filter(s => s.expiry.getTime() - Date.now() < ONE_HOUR_MS).length
   const totalPages = Math.ceil(sessions.length / pageSize)
@@ -311,9 +293,13 @@ function ActiveSessionsPanel() {
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-medium">active sessions</span>
-          <span className="font-mono text-[11px] tabular-nums text-muted-foreground/50">
-            {sessions.length}
-          </span>
+          {sessionsQuery.isLoading ? (
+            <Skeleton className="h-3 w-4" />
+          ) : (
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground/50">
+              {sessions.length}
+            </span>
+          )}
         </div>
         {expiringCount > 0 ? (
           <span className="text-xs text-amber-600 dark:text-amber-400">
@@ -321,8 +307,26 @@ function ActiveSessionsPanel() {
           </span>
         ) : null}
       </div>
-      {sessions.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">no active sessions</p>
+      {sessionsQuery.isLoading ? (
+        <div className="divide-y divide-border" style={{ minHeight: `${pageSize * 3.5}rem` }}>
+          {Array.from({ length: pageSize }, (_, i) => (
+            <div className="flex h-14 items-center justify-between px-4" key={i}>
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <Skeleton className="h-8 w-16 rounded-md" />
+            </div>
+          ))}
+        </div>
+      ) : sessionsQuery.isError ? (
+        <div className="px-4 py-4 text-sm text-destructive">
+          {sessionsQuery.error.message}
+        </div>
+      ) : sessions.length === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground text-pretty">
+          no active sessions
+        </p>
       ) : (
         <>
           <div className="divide-y divide-border" style={{ minHeight: `${pageSize * 3.5}rem` }}>

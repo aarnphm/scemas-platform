@@ -6,11 +6,7 @@ export type IngestionHealth = {
   totalRejected: number
 }
 
-export type LifecycleHealth = {
-  phase: string
-  drainStage: string | null
-  inflight: number
-}
+export type LifecycleHealth = { phase: string; drainStage: string | null; inflight: number }
 
 export async function fetchRustHealthPayload(): Promise<unknown | null> {
   try {
@@ -39,11 +35,7 @@ export function decodeLifecycleHealth(payload: unknown): LifecycleHealth {
   const lifecycle = getNestedRecord(payload, 'lifecycle')
 
   if (!lifecycle) {
-    return {
-      phase: 'unknown',
-      drainStage: null,
-      inflight: 0,
-    }
+    return { phase: 'unknown', drainStage: null, inflight: 0 }
   }
 
   return {

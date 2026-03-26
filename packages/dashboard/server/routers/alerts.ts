@@ -129,9 +129,10 @@ export const alertsRouter = router({
   frequency: protectedProcedure
     .input(z.object({ hours: z.number().min(1).max(720).default(24) }))
     .query(async ({ input, ctx }) => {
+      const bucket = input.hours > 168 ? 'day' : 'hour'
       const rows = await ctx.db.$client`
         SELECT
-          date_trunc('hour', created_at) as hour,
+          date_trunc(${bucket}, created_at) as hour,
           COUNT(*) FILTER (WHERE severity = 1) as low,
           COUNT(*) FILTER (WHERE severity = 2) as warning,
           COUNT(*) FILTER (WHERE severity = 3) as critical

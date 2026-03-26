@@ -15,27 +15,13 @@ export function PublicLayout() {
     <div className="flex h-dvh flex-col">
       <div
         data-tauri-drag-region
-        className="flex h-8 shrink-0 items-center justify-between border-b pl-[76px] pr-4"
+        className="flex h-8 shrink-0 items-center justify-end gap-4 border-b px-4 text-xs"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
-        <div
-          className="flex items-center gap-2"
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-        >
-          <span className="text-sm font-semibold">SCEMAS</span>
-          <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            PublicUser
-          </span>
-        </div>
-        <div
-          className="flex items-center gap-4 text-xs"
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-        >
-          <span className="text-muted-foreground">{user?.email}</span>
-          <button onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
-            sign out
-          </button>
-        </div>
+        <span className="text-muted-foreground" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>{user?.email}</span>
+        <button onClick={handleSignOut} className="text-muted-foreground hover:text-foreground" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          sign out
+        </button>
       </div>
       <main className="flex-1 overflow-auto">
         <Outlet />

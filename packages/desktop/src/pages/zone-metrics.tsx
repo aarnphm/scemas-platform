@@ -103,7 +103,9 @@ export function ZoneMetricsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-6">
       <div>
-        <h1 className="text-xl font-semibold text-balance">{(zone ?? '').replaceAll('_', ' ')} metrics</h1>
+        <h1 className="text-xl font-semibold text-balance">
+          {(zone ?? '').replaceAll('_', ' ')} metrics
+        </h1>
         <p className="text-sm text-muted-foreground">
           region drill-down for the four sensor subagents
         </p>

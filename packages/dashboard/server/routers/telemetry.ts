@@ -105,7 +105,10 @@ export const telemetryRouter = router({
         points.set(pointTime, point)
       }
 
-      return Array.from(points.values())
+      const all = Array.from(points.values())
+      if (all.length <= 500) return all
+      const step = Math.ceil(all.length / 500)
+      return all.filter((_, i) => i % step === 0)
     }),
 })
 

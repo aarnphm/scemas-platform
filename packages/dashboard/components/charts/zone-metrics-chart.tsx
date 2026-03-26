@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import {
   ChartContainer,
@@ -9,6 +10,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { makeChartTimeFormatter, periodLabel } from '@/lib/chart-utils'
 
 type TimeSeriesPoint = {
   time: string
@@ -32,30 +34,13 @@ const tooltipLabels: Record<string, string> = {
   noiseLevel: 'noise',
 }
 
-function formatTime(isoString: string) {
-  const date = new Date(isoString)
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-}
-
-const periodLabels: Record<number, string> = {
-  3: 'last 3 hours',
-  6: 'last 6 hours',
-  12: 'last 12 hours',
-  24: 'last 24 hours',
-  72: 'last 3 days',
-  168: 'last 7 days',
-  720: 'last 30 days',
-}
-
-function formatPeriod(hours: number): string {
-  return periodLabels[hours] ?? `last ${hours}h`
-}
-
 type ZoneMetricsChartProps = { data: TimeSeriesPoint[]; zoneName?: string; hours?: number }
 
 export function ZoneMetricsChart({ data, zoneName, hours }: ZoneMetricsChartProps) {
+  const fmt = useMemo(() => makeChartTimeFormatter(hours ?? 6), [hours])
+
   if (data.length === 0) {
-    const context = [zoneName, hours ? formatPeriod(hours) : null].filter(Boolean).join(', ')
+    const context = [zoneName, hours ? periodLabel(hours) : null].filter(Boolean).join(', ')
     return (
       <div className="flex h-72 items-center justify-center">
         <p className="text-sm text-muted-foreground text-pretty">
@@ -69,12 +54,12 @@ export function ZoneMetricsChart({ data, zoneName, hours }: ZoneMetricsChartProp
     <ChartContainer className="h-72 w-full" config={chartConfig}>
       <LineChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="time" tickFormatter={formatTime} tick={{ fontSize: 11 }} />
+        <XAxis dataKey="time" tickFormatter={fmt} tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} width={40} />
         <ChartTooltip
           content={
             <ChartTooltipContent
-              labelFormatter={formatTime}
+              labelFormatter={fmt}
               formatter={(value, name, item) => (
                 <>
                   <div

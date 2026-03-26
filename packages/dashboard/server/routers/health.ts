@@ -2,8 +2,8 @@
 
 import { platformStatus } from '@scemas/db/schema'
 import { desc } from 'drizzle-orm'
-import { callRustEndpoint } from '../rust-client'
 import { decodeIngestionHealth, decodeLifecycleHealth, fetchRustHealthPayload } from '../health'
+import { callRustEndpoint } from '../rust-client'
 import { router, publicProcedure, adminProcedure } from '../trpc'
 
 export const healthRouter = router({

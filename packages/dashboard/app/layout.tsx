@@ -1,9 +1,10 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Geist } from 'next/font/google'
 import localFont from 'next/font/local'
 import { TRPCProvider } from '@/lib/trpc-provider'
 import { cn } from '@/lib/utils'
+import { InstallSW } from './install-sw'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -24,13 +25,22 @@ const mono = localFont({
   display: 'swap',
 })
 
+export const viewport: Viewport = {
+  themeColor: '#fffdf7',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_URL ?? 'http://localhost:3000'),
   title: { default: 'SCEMAS', template: '%s | SCEMAS' },
   description: 'smart city environmental monitoring and alert system for Hamilton, ON',
   openGraph: { type: 'website', siteName: 'SCEMAS', locale: 'en_CA' },
   twitter: { card: 'summary_large_image' },
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/favicon.svg', apple: '/icons/icon-192.png' },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'SCEMAS', statusBarStyle: 'default' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -38,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={cn('font-sans', geist.variable, mono.variable)}>
       <body className="antialiased">
         <TRPCProvider>{children}</TRPCProvider>
+        <InstallSW />
       </body>
     </html>
   )

@@ -1,7 +1,7 @@
-import { Link } from '@tanstack/react-router'
-import { useState, useMemo, useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { invoke } from '@tauri-apps/api/core'
+import { useState, useMemo, useCallback } from 'react'
 import { useTauriQuery } from '@/lib/tauri'
 import { useAuthStore } from '@/store/auth'
 
@@ -77,68 +77,96 @@ export function AlertsPage() {
   )
 
   const queryClient = useQueryClient()
-  const queryKey = ['alerts_list', {
-    limit: 100,
-    zone: zoneFilter !== 'all' ? zoneFilter : undefined,
-    hours: live ? undefined : hours,
-  }]
+  const queryKey = [
+    'alerts_list',
+    {
+      limit: 100,
+      zone: zoneFilter !== 'all' ? zoneFilter : undefined,
+      hours: live ? undefined : hours,
+    },
+  ]
 
-  const patchStatus = useCallback((id: string, status: string) => {
-    queryClient.setQueryData<CursorPage>(queryKey, old => {
-      if (!old) return old
-      return { ...old, items: old.items.map(a => a.id === id ? { ...a, status } : a) }
-    })
-  }, [queryClient, queryKey])
+  const patchStatus = useCallback(
+    (id: string, status: string) => {
+      queryClient.setQueryData<CursorPage>(queryKey, old => {
+        if (!old) return old
+        return { ...old, items: old.items.map(a => (a.id === id ? { ...a, status } : a)) }
+      })
+    },
+    [queryClient, queryKey],
+  )
 
-  const removeItem = useCallback((id: string) => {
-    queryClient.setQueryData<CursorPage>(queryKey, old => {
-      if (!old) return old
-      return { ...old, items: old.items.filter(a => a.id !== id) }
-    })
-  }, [queryClient, queryKey])
+  const removeItem = useCallback(
+    (id: string) => {
+      queryClient.setQueryData<CursorPage>(queryKey, old => {
+        if (!old) return old
+        return { ...old, items: old.items.filter(a => a.id !== id) }
+      })
+    },
+    [queryClient, queryKey],
+  )
 
-  const removeItems = useCallback((ids: Set<string>) => {
-    queryClient.setQueryData<CursorPage>(queryKey, old => {
-      if (!old) return old
-      return { ...old, items: old.items.filter(a => !ids.has(a.id)) }
-    })
-  }, [queryClient, queryKey])
-
-  const afterMutation = useCallback((action: 'ack' | 'resolve', id: string) => {
-    if (live) {
-      queryClient.invalidateQueries({ queryKey: ['alerts_list'] })
-    } else if (action === 'ack') {
-      patchStatus(id, 'acknowledged')
-    } else {
-      removeItem(id)
-    }
-  }, [live, queryClient, patchStatus, removeItem])
+  const removeItems = useCallback(
+    (ids: Set<string>) => {
+      queryClient.setQueryData<CursorPage>(queryKey, old => {
+        if (!old) return old
+        return { ...old, items: old.items.filter(a => !ids.has(a.id)) }
+      })
+    },
+    [queryClient, queryKey],
+  )
 
   const ack = useMutation({
     mutationFn: (args: { alertId: string; userId: string }) =>
       invoke('alerts_acknowledge', { args }),
-    onMutate: ({ alertId }) => setInflightId(alertId),
-    onSuccess: (_data, { alertId }) => afterMutation('ack', alertId),
+    onMutate: ({ alertId }) => {
+      setInflightId(alertId)
+      if (live) return
+      const prev = queryClient.getQueryData<CursorPage>(queryKey)
+      patchStatus(alertId, 'acknowledged')
+      return { prev }
+    },
+    onSuccess: () => {
+      if (live) queryClient.invalidateQueries({ queryKey: ['alerts_list'] })
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKey, ctx.prev)
+    },
     onSettled: () => setInflightId(null),
   })
 
   const resolve = useMutation({
-    mutationFn: (args: { alertId: string; userId: string }) =>
-      invoke('alerts_resolve', { args }),
-    onMutate: ({ alertId }) => setInflightId(alertId),
-    onSuccess: (_data, { alertId }) => afterMutation('resolve', alertId),
+    mutationFn: (args: { alertId: string; userId: string }) => invoke('alerts_resolve', { args }),
+    onMutate: ({ alertId }) => {
+      setInflightId(alertId)
+      if (live) return
+      const prev = queryClient.getQueryData<CursorPage>(queryKey)
+      removeItem(alertId)
+      return { prev }
+    },
+    onSuccess: () => {
+      if (live) queryClient.invalidateQueries({ queryKey: ['alerts_list'] })
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKey, ctx.prev)
+    },
     onSettled: () => setInflightId(null),
   })
 
   const batchResolve = useMutation({
     mutationFn: (args: { ids: string[]; userId: string }) =>
       invoke('alerts_batch_resolve', { args }),
-    onSuccess: (_data, { ids }) => {
-      if (live) {
-        queryClient.invalidateQueries({ queryKey: ['alerts_list'] })
-      } else {
-        removeItems(new Set(ids))
-      }
+    onMutate: ({ ids }) => {
+      if (live) return
+      const prev = queryClient.getQueryData<CursorPage>(queryKey)
+      removeItems(new Set(ids))
+      return { prev }
+    },
+    onSuccess: () => {
+      if (live) queryClient.invalidateQueries({ queryKey: ['alerts_list'] })
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKey, ctx.prev)
     },
   })
 

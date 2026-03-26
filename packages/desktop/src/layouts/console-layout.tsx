@@ -6,7 +6,6 @@ const operatorNav = [
   { label: 'dashboard', path: '/dashboard' },
   { label: 'alerts', path: '/alerts' },
   { label: 'metrics', path: '/metrics' },
-  { label: 'subscriptions', path: '/subscriptions' },
 ]
 
 const adminNav = [
@@ -48,10 +47,27 @@ export function ConsoleLayout() {
           ))}
         </nav>
 
+        {!isAdmin && (
+          <div className="px-3 pb-2">
+            <Link
+              to="/subscriptions"
+              className={`block rounded-md border px-3 py-1.5 text-center text-sm transition-colors ${
+                location.pathname === '/subscriptions'
+                  ? 'border-sidebar-accent bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                  : 'border-border text-sidebar-foreground/70 hover:bg-sidebar-accent/50'
+              }`}
+            >
+              subscriptions
+            </Link>
+          </div>
+        )}
+
         <div className="space-y-2 border-t p-3">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <span className={`size-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span
+                className={`size-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}
+              />
               {connected ? 'connected' : 'disconnected'}
             </div>
             <Link
@@ -80,20 +96,39 @@ export function ConsoleLayout() {
           className="flex h-8 shrink-0 items-center gap-0.5 border-b px-2"
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         >
-          <div className="flex items-center gap-0.5" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <div
+            className="flex items-center gap-0.5"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          >
             <button
               onClick={() => window.history.back()}
               className="inline-flex size-5 items-center justify-center rounded text-muted-foreground/70 hover:text-foreground"
               aria-label="go back"
             >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M10 3L5 8l5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
             <button
               onClick={() => window.history.forward()}
               className="inline-flex size-5 items-center justify-center rounded text-muted-foreground/70 hover:text-foreground"
               aria-label="go forward"
             >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M6 3l5 5-5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           </div>
           <span className="ml-2 text-[11px] text-muted-foreground/70">{location.pathname}</span>

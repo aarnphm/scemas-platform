@@ -33,7 +33,7 @@ type PublicSettingsState = {
 export const usePublicSettings = create<PublicSettingsState>()(
   persist(
     set => ({
-      pageSize: 4,
+      pageSize: 8,
       refreshInterval: 10,
       setPageSize: size => set({ pageSize: size }),
       setRefreshInterval: interval => set({ refreshInterval: interval }),

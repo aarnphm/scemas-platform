@@ -25,5 +25,5 @@ export function PlatformHealthWrapper({
   data: Array<{ time: string; latencyMs: number; errorRate: number }>
 }) {
   const reversed = [...data].toReversed()
-  return <PlatformHealthChart data={reversed} />
+  return <PlatformHealthChart data={reversed} hours={24} />
 }

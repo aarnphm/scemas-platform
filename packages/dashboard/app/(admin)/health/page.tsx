@@ -8,7 +8,11 @@ import { redirect } from 'next/navigation'
 import { resolveSessionUser, sessionLandingPath } from '@/lib/session'
 import { getDb } from '@/server/cached'
 import { getJwtSecret } from '@/server/env'
-import { decodeIngestionHealth, fetchRustHealthPayload, type IngestionHealth } from '@/server/health'
+import {
+  decodeIngestionHealth,
+  fetchRustHealthPayload,
+  type IngestionHealth,
+} from '@/server/health'
 import { IngestionFunnelWrapper, PlatformHealthWrapper } from './health-charts'
 
 export const metadata: Metadata = { title: 'platform health' }

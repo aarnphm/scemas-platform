@@ -52,14 +52,6 @@ export function ZoneAqiGrid() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border/30 bg-card/60 p-4">
-        <p className="text-xs text-muted-foreground/60">monitoring regions</p>
-        <p className="mt-2 font-mono text-2xl tabular-nums text-foreground/80">{regions.length}</p>
-        <p className="mt-1 text-xs text-muted-foreground/60 text-pretty">
-          public rollup across named hamilton monitoring regions
-        </p>
-      </div>
-
       <div>
         <div className="flex flex-wrap gap-4">
           {pageRegions.map(region => (
