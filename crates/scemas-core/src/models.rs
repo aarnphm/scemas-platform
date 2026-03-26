@@ -477,11 +477,20 @@ mod tests {
         let viewer_routes = pac_routes_for_role(&Role::Viewer);
 
         for route in operator_routes {
-            assert!(!admin_routes.contains(route), "operator/admin overlap on {route}");
-            assert!(!viewer_routes.contains(route), "operator/viewer overlap on {route}");
+            assert!(
+                !admin_routes.contains(route),
+                "operator/admin overlap on {route}"
+            );
+            assert!(
+                !viewer_routes.contains(route),
+                "operator/viewer overlap on {route}"
+            );
         }
         for route in admin_routes {
-            assert!(!viewer_routes.contains(route), "admin/viewer overlap on {route}");
+            assert!(
+                !viewer_routes.contains(route),
+                "admin/viewer overlap on {route}"
+            );
         }
     }
 
@@ -506,7 +515,11 @@ mod tests {
     #[test]
     fn viewer_agent_is_scoped_to_public_display_only() {
         let routes = pac_routes_for_role(&Role::Viewer);
-        assert_eq!(routes, &["/display"], "viewer must only access the public display");
+        assert_eq!(
+            routes,
+            &["/display"],
+            "viewer must only access the public display"
+        );
     }
 
     #[test]

@@ -123,7 +123,11 @@ mod tests {
 
         let reading = sample_reading(40.0);
         let alerts = evaluator::evaluate(&reading, bb.active_rules.values());
-        assert_eq!(alerts.len(), 1, "evaluator should fire against the loaded rule");
+        assert_eq!(
+            alerts.len(),
+            1,
+            "evaluator should fire against the loaded rule"
+        );
     }
 
     #[test]
