@@ -51,6 +51,7 @@ impl Default for IngestionHealth {
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HealthSnapshot {
     pub total_received: u64,
     pub total_accepted: u64,

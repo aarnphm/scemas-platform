@@ -1,6 +1,7 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useState, useMemo } from 'react'
 import { useTauriQuery, useTauriMutation } from '@/lib/tauri'
 import { useAuthStore } from '@/store/auth'
+import { useSettings } from '@/lib/settings'
 
 type MetricType = 'temperature' | 'humidity' | 'air_quality' | 'noise_level'
 type Comparison = 'gt' | 'gte' | 'lt' | 'lte'
@@ -55,8 +56,16 @@ export function RulesPage() {
 
   const deleteRule = useTauriMutation<{ args: { ruleId: string } }>('rules_delete', ['rules_list'])
 
+  const pageSize = useSettings(s => s.pageSize)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [submissionError, setSubmissionError] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
+
+  const allRules = rules.data ?? []
+  const ruleSlice = useMemo(() => {
+    const start = page * pageSize
+    return { items: allRules.slice(start, start + pageSize), total: allRules.length, start }
+  }, [allRules, page, pageSize])
 
   function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -180,13 +189,14 @@ export function RulesPage() {
 
       <div className="rounded-lg border">
         <div className="border-b px-4 py-3 text-sm font-medium">active rulebook</div>
-        {(rules.data ?? []).length === 0 ? (
+        {allRules.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
             no threshold rules have been defined yet. use the form above to create one.
           </p>
         ) : (
+          <>
           <div className="divide-y">
-            {(rules.data ?? []).map(rule =>
+            {ruleSlice.items.map(rule =>
               editingId === rule.id ? (
                 <RuleEditRow
                   key={rule.id}
@@ -217,16 +227,7 @@ export function RulesPage() {
                       <span className="font-mono tabular-nums">{rule.thresholdValue}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      scope: {rule.zone ?? 'all regions'} |{' '}
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs ${
-                          rule.ruleStatus === 'active'
-                            ? 'bg-green-500/15 text-green-700'
-                            : 'bg-secondary text-muted-foreground'
-                        }`}
-                      >
-                        {rule.ruleStatus}
-                      </span>
+                      scope: {rule.zone?.replaceAll('_', ' ') ?? 'all regions'} | status: {rule.ruleStatus}
                     </p>
                   </div>
 
@@ -254,7 +255,7 @@ export function RulesPage() {
                     <button
                       disabled={deleteRule.isPending}
                       onClick={() => deleteRule.mutate({ args: { ruleId: rule.id } })}
-                      className="h-8 rounded-md bg-destructive px-3 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+                      className="h-8 rounded-md border border-red-500/30 bg-red-500/10 px-3 text-xs font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-50"
                     >
                       delete
                     </button>
@@ -263,6 +264,12 @@ export function RulesPage() {
               ),
             )}
           </div>
+          <div className="border-t px-4 py-2">
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {ruleSlice.start + 1}–{ruleSlice.start + ruleSlice.items.length} of {ruleSlice.total}
+            </span>
+          </div>
+          </>
         )}
       </div>
     </div>

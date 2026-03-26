@@ -275,11 +275,27 @@ pub async fn tokens_create(
 
 #[tauri::command]
 pub async fn health_get(runtime: State<'_, ScemasRuntime>) -> Result<serde_json::Value> {
-    let snapshot = runtime.health.snapshot();
+    let mem = runtime.health.snapshot();
+
+    // prefer database counters (includes seed/HTTP ingestions), fall back to in-memory
+    let (received, accepted, rejected) = sqlx::query_as::<_, (i64, i64, i64)>(
+        "SELECT total_received, total_accepted, total_rejected FROM ingestion_counters WHERE subsystem = 'telemetry_ingestion'"
+    )
+    .fetch_optional(&runtime.pool)
+    .await
+    .ok()
+    .flatten()
+    .map(|(r, a, j)| (r.max(mem.total_received as i64), a.max(mem.total_accepted as i64), j.max(mem.total_rejected as i64)))
+    .unwrap_or((mem.total_received as i64, mem.total_accepted as i64, mem.total_rejected as i64));
+
     let phase = runtime.lifecycle.phase();
     let drain_stage = runtime.lifecycle.drain_stage();
     Ok(serde_json::json!({
-        "counters": snapshot,
+        "counters": {
+            "totalReceived": received,
+            "totalAccepted": accepted,
+            "totalRejected": rejected,
+        },
         "lifecycle": {
             "phase": phase.to_string(),
             "drainStage": drain_stage.to_string(),

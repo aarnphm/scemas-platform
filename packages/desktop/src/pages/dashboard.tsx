@@ -12,6 +12,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
+import { PeriodSelector } from '@/components/period-selector'
+import { CHART_PERIODS, makeChartTimeFormatter } from '@/lib/chart-utils'
 import { useTauriQuery } from '@/lib/tauri'
 import { useAuthStore } from '@/store/auth'
 
@@ -81,15 +83,6 @@ const SEVERITY_LABEL: Record<number, { label: string; cls: string }> = {
   3: { label: 'Critical', cls: 'bg-red-500/15 text-red-700' },
 }
 
-const PERIOD_OPTIONS = [
-  { label: '3h', value: 3 },
-  { label: '6h', value: 6 },
-  { label: '12h', value: 12 },
-  { label: '24h', value: 24 },
-  { label: '7d', value: 168 },
-  { label: '30d', value: 720 },
-] as const
-
 interface MetricGroup {
   avg: number
   count: number
@@ -145,30 +138,19 @@ export function DashboardPage() {
     [alerts.data],
   )
 
-  const chartData = useMemo(
-    () =>
-      (timeSeries.data ?? []).map(pt => ({
-        time: new Date(pt.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        temperature: pt.temperature,
-        humidity: pt.humidity,
-        airQuality: pt.airQuality,
-        noiseLevel: pt.noiseLevel,
-      })),
-    [timeSeries.data],
-  )
+  const fmt = useMemo(() => makeChartTimeFormatter(chartHours), [chartHours])
+  const chartData = timeSeries.data ?? []
 
-  const freqData = useMemo(
-    () =>
-      (alertFreq.data ?? []).map(pt => ({
-        hour: new Date(pt.hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        low: pt.low,
-        warning: pt.warning,
-        critical: pt.critical,
-      })),
-    [alertFreq.data],
-  )
+  const freqFmt = useMemo(() => makeChartTimeFormatter(freqHours), [freqHours])
+  const freqData = alertFreq.data ?? []
 
-  const latestReadings = useMemo(() => (readings.data ?? []).slice(0, 12), [readings.data])
+  const [feedPage, setFeedPage] = useState(0)
+  const feedSize = 5
+  const allReadings = readings.data ?? []
+  const feedSlice = useMemo(() => {
+    const start = feedPage * feedSize
+    return { items: allReadings.slice(start, start + feedSize), total: Math.min(allReadings.length, 50), start }
+  }, [allReadings, feedPage])
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-6">
@@ -202,21 +184,7 @@ export function DashboardPage() {
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-medium">region metrics</h2>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              {PERIOD_OPTIONS.map(o => (
-                <button
-                  key={o.value}
-                  onClick={() => setChartHours(o.value)}
-                  className={`h-7 rounded-md px-2 text-xs font-medium ${
-                    chartHours === o.value
-                      ? 'border border-input bg-background shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
+            <PeriodSelector periods={CHART_PERIODS} value={chartHours} onChange={setChartHours} />
             <select
               value={effectiveZone}
               onChange={e => setChartZone(e.target.value)}
@@ -240,16 +208,16 @@ export function DashboardPage() {
             <div className="flex h-full items-center justify-center">
               <p className="text-sm text-muted-foreground text-pretty">
                 no data for {effectiveZone ? effectiveZone.replaceAll('_', ' ') : 'selected zone'},
-                last {PERIOD_OPTIONS.find(o => o.value === chartHours)?.label ?? `${chartHours}h`}
+                {CHART_PERIODS.find(o => o.hours === chartHours)?.label ?? `${chartHours}h`}
               </p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="time" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="time" tickFormatter={fmt} tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
+                <Tooltip labelFormatter={fmt} />
                 <Legend />
                 <Line
                   type="monotone"
@@ -293,78 +261,79 @@ export function DashboardPage() {
         <div className="rounded-lg border">
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-medium">live sensor feed</h2>
+            <p className="text-xs text-muted-foreground">
+              {allReadings.length} streams across {availableZones.length} regions
+            </p>
           </div>
           {readings.isLoading ? (
             <p className="p-4 text-sm text-muted-foreground">loading...</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="px-4 py-2 font-medium">sensor</th>
-                    <th className="px-4 py-2 font-medium">metric</th>
-                    <th className="px-4 py-2 font-medium">value</th>
-                    <th className="px-4 py-2 font-medium">zone</th>
-                    <th className="px-4 py-2 font-medium">time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {latestReadings.map(r => (
-                    <tr key={`${r.sensorId}-${r.id}`} className="border-b last:border-0">
-                      <td className="px-4 py-2 font-mono text-xs">{r.sensorId}</td>
-                      <td className="px-4 py-2">{r.metricType.replace('_', ' ')}</td>
-                      <td className="px-4 py-2 tabular-nums">{r.value.toFixed(2)}</td>
-                      <td className="px-4 py-2">{r.zone}</td>
-                      <td className="px-4 py-2 text-muted-foreground">
-                        {new Date(r.time).toLocaleTimeString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="divide-y">
+                {feedSlice.items.map(r => (
+                  <div key={`${r.sensorId}-${r.id}`} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{r.sensorId}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.zone.replaceAll('_', ' ')}
+                      </p>
+                    </div>
+                    <p className="font-mono text-sm tabular-nums text-muted-foreground">
+                      {r.metricType.replaceAll('_', ' ')} <span className="text-foreground">{r.value.toFixed(2)}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between border-t px-4 py-2">
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {feedSlice.start + 1}–{feedSlice.start + feedSlice.items.length} of {feedSlice.total}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button disabled={feedPage === 0} onClick={() => setFeedPage(p => p - 1)} className="h-7 rounded-md border border-input px-2 text-xs font-medium disabled:opacity-30 hover:bg-accent">
+                    previous
+                  </button>
+                  <button disabled={feedSlice.start + feedSize >= feedSlice.total} onClick={() => setFeedPage(p => p + 1)} className="h-7 rounded-md border border-input px-2 text-xs font-medium disabled:opacity-30 hover:bg-accent">
+                    next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
 
         <div className="rounded-lg border">
-          <div className="border-b px-4 py-3 flex items-center justify-between">
+          <div className="border-b px-4 py-3">
             <h2 className="text-sm font-medium">active alerts</h2>
-            <Link
-              to="/alerts"
-              className="text-xs text-muted-foreground underline hover:text-foreground"
-            >
-              view all
-            </Link>
+            <p className="text-xs text-muted-foreground">{activeAlerts.length} unresolved</p>
           </div>
           {alerts.isLoading ? (
             <p className="p-4 text-sm text-muted-foreground">loading...</p>
           ) : activeAlerts.length === 0 ? (
             <p className="p-4 text-sm text-muted-foreground">no active alerts</p>
           ) : (
-            <ul className="divide-y">
+            <div className="divide-y">
               {activeAlerts.map(a => {
                 const sev = SEVERITY_LABEL[a.severity] ?? SEVERITY_LABEL[1]
                 return (
-                  <li key={a.id} className="flex items-center gap-3 px-4 py-2 text-sm">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${sev.cls}`}>
-                      {sev.label}
+                  <Link
+                    key={a.id}
+                    to="/alerts/$alertId"
+                    params={{ alertId: a.id }}
+                    className="flex items-center justify-between px-4 py-2 transition-colors hover:bg-muted/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${sev.cls}`}>
+                        {sev.label}
+                      </span>
+                      <span className="text-sm font-medium">{a.zone.replaceAll('_', ' ')}</span>
+                    </div>
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                      {a.metricType.replaceAll('_', ' ')} at {a.triggeredValue.toFixed(2)}
                     </span>
-                    <span className="truncate">{a.zone}</span>
-                    <span className="text-muted-foreground">{a.metricType.replace('_', ' ')}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {new Date(a.createdAt).toLocaleTimeString()}
-                    </span>
-                    <Link
-                      to="/alerts/$alertId"
-                      params={{ alertId: a.id }}
-                      className="text-xs underline"
-                    >
-                      view
-                    </Link>
-                  </li>
+                  </Link>
                 )
               })}
-            </ul>
+            </div>
           )}
         </div>
       </div>
@@ -372,28 +341,7 @@ export function DashboardPage() {
       <div className="rounded-lg border p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-medium">alert frequency</h2>
-          <div className="flex items-center gap-1">
-            {(
-              [
-                { label: '6h', value: 6 },
-                { label: '24h', value: 24 },
-                { label: '7d', value: 168 },
-                { label: '30d', value: 720 },
-              ] as const
-            ).map(o => (
-              <button
-                key={o.value}
-                onClick={() => setFreqHours(o.value)}
-                className={`h-7 rounded-md px-2 text-xs font-medium ${
-                  freqHours === o.value
-                    ? 'border border-input bg-background shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+          <PeriodSelector periods={CHART_PERIODS} value={freqHours} onChange={setFreqHours} />
         </div>
         <div className="relative h-56">
           {alertFreq.isFetching && (
@@ -411,9 +359,9 @@ export function DashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={freqData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="hour" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="hour" tickFormatter={freqFmt} tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
+                <Tooltip labelFormatter={freqFmt} />
                 <Legend />
                 <Bar dataKey="low" stackId="a" fill="#f5c77e" radius={[0, 0, 0, 0]} />
                 <Bar dataKey="warning" stackId="a" fill="#e8813a" radius={[0, 0, 0, 0]} />

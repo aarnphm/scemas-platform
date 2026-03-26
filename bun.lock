@@ -109,6 +109,7 @@
         "@scemas/types": "workspace:*",
         "@tanstack/react-query": "^5.75.0",
         "@tanstack/react-router": "^1.168.4",
+        "@tanstack/react-virtual": "^3.13.23",
         "@tauri-apps/api": "^2.0.0",
         "@tauri-apps/plugin-autostart": "^2.0.0",
         "@tauri-apps/plugin-deep-link": "^2.0.0",

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   AreaChart,
   Area,
@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { makeChartTimeFormatter } from '@/lib/chart-utils'
 import { useHealth, useTauriQuery } from '@/lib/tauri'
+import { useSettings } from '@/lib/settings'
 
 interface PlatformStatusRow {
   id: number
@@ -24,8 +25,14 @@ interface PlatformStatusRow {
 export function HealthPage() {
   const health = useHealth()
   const statuses = useTauriQuery<PlatformStatusRow[]>('health_status', { limit: 50 })
+  const pageSize = useSettings(s => s.pageSize)
+  const [statusPage, setStatusPage] = useState(0)
 
   const statusRows = statuses.data ?? []
+  const statusSlice = useMemo(() => {
+    const start = statusPage * pageSize
+    return { items: statusRows.slice(start, start + pageSize), total: statusRows.length, start }
+  }, [statusRows, statusPage, pageSize])
 
   const received = health.data?.counters?.totalReceived ?? 0
   const accepted = health.data?.counters?.totalAccepted ?? 0
@@ -129,6 +136,7 @@ export function HealthPage() {
         ) : statusRows.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">no status records yet</p>
         ) : (
+          <>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -140,7 +148,7 @@ export function HealthPage() {
               </tr>
             </thead>
             <tbody>
-              {statusRows.map(s => (
+              {statusSlice.items.map(s => (
                 <tr key={s.id} className="border-b last:border-0">
                   <td className="px-4 py-2 font-medium">{s.subsystem}</td>
                   <td className="px-4 py-2">
@@ -169,6 +177,20 @@ export function HealthPage() {
               ))}
             </tbody>
           </table>
+          <div className="flex items-center justify-between border-t px-4 py-2">
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {statusSlice.start + 1}–{statusSlice.start + statusSlice.items.length} of {statusSlice.total}
+            </span>
+            <div className="flex items-center gap-1">
+              <button disabled={statusPage === 0} onClick={() => setStatusPage(p => p - 1)} className="h-7 rounded-md border border-input px-2 text-xs font-medium disabled:opacity-30 hover:bg-accent">
+                previous
+              </button>
+              <button disabled={statusSlice.start + pageSize >= statusSlice.total} onClick={() => setStatusPage(p => p + 1)} className="h-7 rounded-md border border-input px-2 text-xs font-medium disabled:opacity-30 hover:bg-accent">
+                next
+              </button>
+            </div>
+          </div>
+          </>
         )}
       </div>
     </div>

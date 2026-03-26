@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useTauriQuery, useTauriMutation } from '@/lib/tauri'
+import { useSettings } from '@/lib/settings'
 
 type DeviceStatus = 'active' | 'inactive' | 'revoked'
 type MetricType = 'temperature' | 'humidity' | 'air_quality' | 'noise_level'
@@ -43,6 +44,8 @@ export function DevicesPage() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null)
 
+  const pageSize = useSettings(s => s.pageSize)
+  const [page, setPage] = useState(0)
   const [newDeviceId, setNewDeviceId] = useState('')
   const [newDeviceType, setNewDeviceType] = useState<MetricType>('temperature')
   const [newDeviceZone, setNewDeviceZone] = useState('')
@@ -63,14 +66,15 @@ export function DevicesPage() {
     )
   }
 
+  const allDevices = devices.data ?? []
+  const deviceSlice = useMemo(() => {
+    const start = page * pageSize
+    return { items: allDevices.slice(start, start + pageSize), total: allDevices.length, start }
+  }, [allDevices, page, pageSize])
+
   if (devices.isLoading) {
     return <p className="p-6 text-sm text-muted-foreground">loading devices...</p>
   }
-
-  const allDevices = devices.data ?? []
-  const selectedDevice = selectedDeviceId
-    ? allDevices.find(d => d.deviceId === selectedDeviceId)
-    : null
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-6">
@@ -150,7 +154,7 @@ export function DevicesPage() {
       ) : (
         <div className="rounded-lg border">
           <div className="divide-y">
-            {allDevices.map(device => (
+            {deviceSlice.items.map(device => (
               <div key={device.deviceId}>
                 <div
                   role="button"
@@ -277,6 +281,19 @@ export function DevicesPage() {
                 )}
               </div>
             ))}
+          </div>
+          <div className="flex items-center justify-between border-t px-4 py-2">
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {deviceSlice.start + 1}–{deviceSlice.start + deviceSlice.items.length} of {deviceSlice.total}
+            </span>
+            <div className="flex items-center gap-1">
+              <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-7 rounded-md border border-input px-2 text-xs font-medium disabled:opacity-30 hover:bg-accent">
+                previous
+              </button>
+              <button disabled={deviceSlice.start + pageSize >= deviceSlice.total} onClick={() => setPage(p => p + 1)} className="h-7 rounded-md border border-input px-2 text-xs font-medium disabled:opacity-30 hover:bg-accent">
+                next
+              </button>
+            </div>
           </div>
         </div>
       )}

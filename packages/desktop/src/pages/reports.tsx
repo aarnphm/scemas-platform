@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { useTauriMutation } from '@/lib/tauri'
+import { useState, useMemo } from 'react'
+import { useTauriQuery, useTauriMutation } from '@/lib/tauri'
+import { useAuthStore } from '@/store/auth'
 
 type ReportStatus = 'pending' | 'reviewing' | 'resolved' | 'dismissed'
 
@@ -18,9 +19,9 @@ interface HazardReport {
   resolvedAt: string | null
 }
 
-const statusFilters = ['all', 'pending', 'reviewing', 'resolved', 'dismissed'] as const
+const STATUS_FILTERS = ['all', 'pending', 'reviewing', 'resolved', 'dismissed'] as const
 
-const categoryLabels: Record<string, string> = {
+const CATEGORY_LABELS: Record<string, string> = {
   environmental_hazard: 'hazard',
   system_misuse: 'misuse',
   inappropriate_content: 'content',
@@ -34,70 +35,26 @@ const STATUS_CLS: Record<string, string> = {
   dismissed: 'bg-muted text-muted-foreground',
 }
 
-const PLACEHOLDER_REPORTS: HazardReport[] = [
-  {
-    id: 'placeholder-1',
-    zone: 'downtown_core',
-    category: 'environmental_hazard',
-    description:
-      'elevated particulate matter near intersection of King and James. multiple readings above 150 PM2.5 for 3 consecutive hours.',
-    status: 'pending',
-    contactEmail: 'citizen@example.com',
-    reportedBy: null,
-    reviewedBy: null,
-    reviewNote: null,
-    createdAt: new Date(Date.now() - 3600_000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600_000).toISOString(),
-    resolvedAt: null,
-  },
-  {
-    id: 'placeholder-2',
-    zone: 'waterfront',
-    category: 'environmental_hazard',
-    description:
-      'noise levels consistently above 85dB near waterfront construction site during non-permitted hours.',
-    status: 'reviewing',
-    contactEmail: null,
-    reportedBy: null,
-    reviewedBy: null,
-    reviewNote: 'contacted bylaw enforcement, awaiting site inspection',
-    createdAt: new Date(Date.now() - 86400_000).toISOString(),
-    updatedAt: new Date(Date.now() - 43200_000).toISOString(),
-    resolvedAt: null,
-  },
-  {
-    id: 'placeholder-3',
-    zone: 'industrial_zone',
-    category: 'other',
-    description: 'temperature sensor appears stuck at -40C, likely hardware failure.',
-    status: 'resolved',
-    contactEmail: null,
-    reportedBy: null,
-    reviewedBy: null,
-    reviewNote: 'sensor replaced by field team, readings normal',
-    createdAt: new Date(Date.now() - 172800_000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400_000).toISOString(),
-    resolvedAt: new Date(Date.now() - 86400_000).toISOString(),
-  },
-]
-
 export function ReportsPage() {
+  const user = useAuthStore(s => s.user)
   const [statusFilter, setStatusFilter] = useState<string>('pending')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reviewNote, setReviewNote] = useState('')
 
-  // TODO: replace with useTauriQuery once reports_list command exists
-  const reports = PLACEHOLDER_REPORTS
+  const reports = useTauriQuery<HazardReport[]>('reports_list', {
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    limit: 100,
+  })
 
   const updateStatus = useTauriMutation<{
-    args: { id: string; status: ReportStatus; reviewNote: string | null }
+    args: { id: string; status: string; reviewNote: string | null; reviewedBy: string | null }
   }>('reports_update_status', ['reports_list'])
 
-  const filtered = statusFilter === 'all' ? reports : reports.filter(r => r.status === statusFilter)
+  const filtered = useMemo(() => reports.data ?? [], [reports.data])
 
   function handleAction(id: string, status: ReportStatus) {
     updateStatus.mutate(
-      { args: { id, status, reviewNote: reviewNote.trim() || null } },
+      { args: { id, status, reviewNote: reviewNote.trim() || null, reviewedBy: user?.id ?? null } },
       {
         onSuccess: () => {
           setExpandedId(null)
@@ -117,11 +74,11 @@ export function ReportsPage() {
       </div>
 
       <div className="flex items-center gap-2">
-        {statusFilters.map(s => (
+        {STATUS_FILTERS.map(s => (
           <button
             key={s}
             onClick={() => setStatusFilter(s)}
-            className={`h-8 rounded-md px-3 text-xs font-medium ${
+            className={`h-8 rounded-md px-3 text-xs font-medium transition-colors ${
               statusFilter === s
                 ? 'bg-primary text-primary-foreground'
                 : 'border border-input hover:bg-accent'
@@ -132,13 +89,13 @@ export function ReportsPage() {
         ))}
       </div>
 
-      <p className="text-xs text-amber-600">
-        reports_list command pending implementation. showing placeholder data.
-      </p>
-
-      {filtered.length === 0 ? (
+      {reports.isLoading ? (
+        <p className="text-sm text-muted-foreground">loading...</p>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-center">
-          <p className="text-sm text-muted-foreground">no reports found</p>
+          <p className="text-sm text-muted-foreground">
+            {statusFilter === 'all' ? 'no reports submitted yet' : `no ${statusFilter} reports`}
+          </p>
           {statusFilter !== 'all' && (
             <button
               onClick={() => setStatusFilter('all')}
@@ -154,20 +111,18 @@ export function ReportsPage() {
             <div key={report.id} className="rounded-lg border">
               <button
                 type="button"
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
                 onClick={() => {
                   setExpandedId(expandedId === report.id ? null : report.id)
                   setReviewNote('')
                 }}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_CLS[report.status] ?? ''}`}
-                  >
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_CLS[report.status] ?? ''}`}>
                     {report.status}
                   </span>
                   <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] font-medium">
-                    {categoryLabels[report.category] ?? report.category}
+                    {CATEGORY_LABELS[report.category] ?? report.category}
                   </span>
                   <span className="truncate text-sm font-medium">
                     {report.zone.replaceAll('_', ' ')}
@@ -180,16 +135,14 @@ export function ReportsPage() {
 
               {expandedId === report.id && (
                 <div className="border-t px-4 py-3 space-y-3">
-                  <p className="text-sm">{report.description}</p>
+                  <p className="text-sm text-pretty">{report.description}</p>
 
                   {report.contactEmail && (
                     <p className="text-xs text-muted-foreground">contact: {report.contactEmail}</p>
                   )}
 
                   {report.reviewNote && (
-                    <p className="text-xs text-muted-foreground">
-                      review note: {report.reviewNote}
-                    </p>
+                    <p className="text-xs text-muted-foreground">review note: {report.reviewNote}</p>
                   )}
 
                   {(report.status === 'pending' || report.status === 'reviewing') && (

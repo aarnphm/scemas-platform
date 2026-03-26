@@ -77,7 +77,7 @@ fn build_menu<R: Runtime>(
     app: &AppHandle<R>,
     session: Option<&AuthInfo>,
 ) -> Result<Menu<R>, tauri::Error> {
-    let show = MenuItem::with_id(app, "show", "Show SCEMAS", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 

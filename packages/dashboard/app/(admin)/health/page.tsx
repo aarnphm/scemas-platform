@@ -13,14 +13,14 @@ import {
   fetchRustHealthPayload,
   type IngestionHealth,
 } from '@/server/health'
-import { IngestionFunnelWrapper, PlatformHealthWrapper } from './health-charts'
+import { IngestionFunnelWrapper, PlatformHealthWrapper, StatusHistoryTable } from './health-charts'
 
 export const metadata: Metadata = { title: 'platform health' }
 
 export default async function HealthPage() {
   const db = getDb()
   const [statusRows, failureRows, ingestionHealth] = await Promise.all([
-    db.query.platformStatus.findMany({ orderBy: [desc(platformStatus.time)], limit: 10 }),
+    db.query.platformStatus.findMany({ orderBy: [desc(platformStatus.time)], limit: 50 }),
     db.query.ingestionFailures.findMany({
       where: eq(ingestionFailures.status, 'pending'),
       orderBy: [desc(ingestionFailures.createdAt)],
@@ -82,7 +82,7 @@ export default async function HealthPage() {
       </div>
 
       <div className="rounded-lg border border-border bg-card p-4">
-        <h2 className="mb-4 text-sm font-medium">platform status history</h2>
+        <h2 className="mb-4 text-sm font-medium text-balance">platform status history</h2>
         <PlatformHealthWrapper
           data={statusRows.map(row => ({
             time: row.time.toISOString(),
@@ -91,6 +91,17 @@ export default async function HealthPage() {
           }))}
         />
       </div>
+
+      <StatusHistoryTable
+        rows={statusRows.map(row => ({
+          id: row.id,
+          subsystem: row.subsystem,
+          status: row.status,
+          latencyMs: row.latencyMs ?? 0,
+          errorRate: row.errorRate ?? 0,
+          time: row.time.toISOString(),
+        }))}
+      />
     </div>
   )
 }

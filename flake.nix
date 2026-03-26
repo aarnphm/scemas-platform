@@ -3,7 +3,10 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/master";
 
-  outputs = {self, nixpkgs}: let
+  outputs = {
+    self,
+    nixpkgs,
+  }: let
     systems = ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
     forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system nixpkgs.legacyPackages.${system});
     mkScemasCli = pkgs: let
@@ -14,40 +17,92 @@
         nodejs_22
         postgresql_16
       ];
-    in pkgs.rustPlatform.buildRustPackage {
-      pname = "scemas";
-      version = self.shortRev or self.dirtyShortRev or "0.1.0";
-      src = ./.;
-      cargoLock.lockFile = ./Cargo.lock;
-      cargoBuildFlags = ["-p" "scemas-cli" "--bin" "scemas"];
-      doCheck = false;
-      nativeBuildInputs = with pkgs; [installShellFiles makeWrapper pkg-config];
-      postInstall = ''
-        mkdir -p completions
-        "$out/bin/scemas" completion bash > completions/scemas.bash
-        "$out/bin/scemas" completion fish > completions/scemas.fish
-        "$out/bin/scemas" completion zsh > completions/_scemas
-        installShellCompletion \
-          --cmd scemas \
-          --bash completions/scemas.bash \
-          --fish completions/scemas.fish \
-          --zsh completions/_scemas
-      '';
-      postFixup = ''
-        wrapProgram "$out/bin/scemas" \
-          --prefix PATH : ${pkgs.lib.makeBinPath runtimePackages}
-      '';
-      meta = {
-        description = "agent-friendly local control plane for scemas";
-        mainProgram = "scemas";
+    in
+      pkgs.rustPlatform.buildRustPackage {
+        pname = "scemas";
+        version = self.shortRev or self.dirtyShortRev or "0.1.0";
+        src = ./.;
+        cargoLock.lockFile = ./Cargo.lock;
+        cargoBuildFlags = ["-p" "scemas-cli" "--bin" "scemas"];
+        doCheck = false;
+        nativeBuildInputs = with pkgs; [installShellFiles makeWrapper pkg-config];
+        postInstall = ''
+          mkdir -p completions
+          "$out/bin/scemas" completion bash > completions/scemas.bash
+          "$out/bin/scemas" completion fish > completions/scemas.fish
+          "$out/bin/scemas" completion zsh > completions/_scemas
+          installShellCompletion \
+            --cmd scemas \
+            --bash completions/scemas.bash \
+            --fish completions/scemas.fish \
+            --zsh completions/_scemas
+        '';
+        postFixup = ''
+          wrapProgram "$out/bin/scemas" \
+            --prefix PATH : ${pkgs.lib.makeBinPath runtimePackages}
+        '';
+        meta = {
+          description = "agent-friendly local control plane for scemas";
+          mainProgram = "scemas";
+        };
       };
-    };
+    mkScemasDesktop = pkgs: let
+      isDarwin = pkgs.stdenv.isDarwin;
+      isLinux = pkgs.stdenv.isLinux;
+      tauriDeps =
+        pkgs.lib.optionals isLinux (with pkgs; [webkitgtk_4_1 libappindicator-gtk3 librsvg patchelf])
+        ++ pkgs.lib.optionals isDarwin [pkgs.apple-sdk_15];
+    in
+      pkgs.rustPlatform.buildRustPackage {
+        pname = "scemas-desktop";
+        version = self.shortRev or self.dirtyShortRev or "0.1.0";
+        src = ./.;
+        cargoLock.lockFile = ./Cargo.lock;
+        cargoBuildFlags = ["-p" "scemas-desktop"];
+        doCheck = false;
+        nativeBuildInputs = with pkgs; [pkg-config bun nodejs_22 cargo-tauri] ++ tauriDeps;
+        preBuild = ''
+          # bundle postgres binaries from nixpkgs
+          mkdir -p crates/scemas-desktop/resources/pg/{bin,lib}
+          for bin in initdb pg_ctl postgres createdb psql; do
+            cp ${pkgs.postgresql_16}/bin/$bin crates/scemas-desktop/resources/pg/bin/
+          done
+          cp -r ${pkgs.postgresql_16}/lib/* crates/scemas-desktop/resources/pg/lib/ || true
+          # build frontend
+          bun install --frozen-lockfile
+          bun --filter @scemas/desktop build
+        '';
+        buildPhase = ''
+          runHook preBuild
+          cd crates/scemas-desktop
+          cargo tauri build --bundles app
+          runHook postBuild
+        '';
+        installPhase = ''
+          mkdir -p $out
+          ${
+            if isDarwin
+            then ''
+              cp -r target/release/bundle/macos/*.app $out/
+            ''
+            else ''
+              cp target/release/scemas-desktop $out/bin/scemas-desktop
+            ''
+          }
+        '';
+        meta = {
+          description = "SCEMAS desktop app (tauri)";
+          mainProgram = "scemas-desktop";
+        };
+      };
   in rec {
     packages = forAllSystems (system: pkgs: let
       scemas = mkScemasCli pkgs;
+      desktop = mkScemasDesktop pkgs;
     in {
       default = scemas;
       scemas = scemas;
+      scemas-desktop = desktop;
     });
 
     apps = forAllSystems (system: _: let
@@ -84,15 +139,24 @@
         ];
     in {
       default = pkgs.mkShell {
-        packages = with pkgs; [
-          cargo clippy rustc rustfmt rust-analyzer
-          bun nodejs_22
-          postgresBin
-          pkg-config openssl python3
-          scemas
-          # tauri cli + desktop deps
-          cargo-tauri
-        ] ++ tauriDeps;
+        packages = with pkgs;
+          [
+            cargo
+            clippy
+            rustc
+            rustfmt
+            rust-analyzer
+            bun
+            nodejs_22
+            postgresBin
+            pkg-config
+            openssl
+            python3
+            scemas
+            # tauri cli + desktop deps
+            cargo-tauri
+          ]
+          ++ tauriDeps;
         env = {
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
           PGPORT = "5432";

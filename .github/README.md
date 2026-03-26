@@ -236,6 +236,56 @@ these are server-to-server routes used by the next/tRPC layer and seed scripts, 
 | `docs/diagrams/data_distribution_management_controller.puml` | distribution controller sequence/state flow |
 | `docs/diagrams/encryption_manager.puml` | auth/encryption manager notes |
 
+## building desktop releases
+
+### local build
+
+```sh
+nix develop
+cargo tauri build --manifest-path crates/scemas-desktop/Cargo.toml
+```
+
+output in `target/release/bundle/`:
+- macOS: `macos/SCEMAS.app` + `dmg/SCEMAS_0.1.0_aarch64.dmg`
+- linux: `appimage/` + `deb/`
+- windows: `msi/` + `nsis/`
+
+### via nix
+
+```sh
+nix build .#scemas-desktop   # builds the desktop app
+nix build .#scemas            # builds the CLI only
+```
+
+### via CI (GitHub Actions)
+
+push a version tag to trigger cross-platform builds:
+
+```sh
+git tag desktop-v0.1.0
+git push origin desktop-v0.1.0
+```
+
+the `desktop.yml` workflow builds for macOS (arm64 + x86_64), linux (x86_64), and windows (x86_64). artifacts are uploaded as a draft GitHub release.
+
+### macOS gatekeeper
+
+the app is ad-hoc signed (no apple developer account). macOS will block it on first launch. users need to right-click the .app → Open, or:
+
+```sh
+xattr -cr /Applications/SCEMAS.app
+```
+
+### postgres bundling
+
+`scripts/bundle-postgres.sh` stages postgres 16 binaries into `crates/scemas-desktop/resources/pg/`. CI runs this automatically. for local builds:
+
+```sh
+bash scripts/bundle-postgres.sh   # macOS/linux
+```
+
+windows builds skip embedded postgres. windows users need external postgres via `docker-compose up -d` and `SCEMAS_USE_EMBEDDED_POSTGRES=0`.
+
 ## tech stack
 
 | layer | tech |

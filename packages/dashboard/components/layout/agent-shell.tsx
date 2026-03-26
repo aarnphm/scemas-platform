@@ -29,11 +29,10 @@ type AgentNavItem = { href: string; label: string }
 type AgentShellProps = {
   title: string
   navItems?: AgentNavItem[]
-  navExtra?: ReactNode
   children: ReactNode
 }
 
-export async function AgentShell({ title, navItems = [], navExtra, children }: AgentShellProps) {
+export async function AgentShell({ title, navItems = [], children }: AgentShellProps) {
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get('sidebar_state')?.value !== 'false'
 
@@ -62,11 +61,6 @@ export async function AgentShell({ title, navItems = [], navExtra, children }: A
               <SidebarGroupContent>
                 <NavLinks items={navItems} />
               </SidebarGroupContent>
-            </SidebarGroup>
-          ) : null}
-          {navExtra ? (
-            <SidebarGroup>
-              <SidebarGroupContent className="px-2">{navExtra}</SidebarGroupContent>
             </SidebarGroup>
           ) : null}
         </SidebarContent>
