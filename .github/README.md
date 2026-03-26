@@ -37,6 +37,8 @@ three PAC agents (distinct dashboards) fed by four controllers:
 
 **public agent**: aggregated AQI display for digital signage. abstracted (sensitive data stripped). shared view for public users and third-party developers.
 
+We also ship a small CLI for better usability.
+
 ## directory map
 
 ```
@@ -67,7 +69,7 @@ scemas-platform/
 
 ```sh
 nix develop       # rust, bun, postgres, shell helpers, first-time setup
-scemas-dev        # starts db + schema + default accounts + engine + dashboard
+scemas dev        # starts db + schema + default accounts + engine + dashboard
 ```
 
 ### without nix
@@ -136,12 +138,13 @@ for desktop release packaging, `scripts/bundle-postgres.sh` is the step that sta
 | `admin@example.com` | admin | `/rules`, `/users`, `/health`, `/audit` |
 | `operator@example.com` | operator | `/dashboard`, `/alerts`, `/subscriptions`, `/metrics` |
 | `viewer@example.com` | viewer | `/display` (public AQI grid) |
+| `public@example.com` | viewer |  |
 
 ### seed sensor data
 
 ```sh
-scemas-seed                 # nix shell
-bun run scripts/seed.ts     # non-nix
+scemas dev seed             # nix shell, or if you build the CLI
+scemas-seed                 # non-nix
 ```
 
 pass `--spike` to generate readings that trigger alerts.
@@ -154,7 +157,6 @@ both paths give you the same functions:
 | function | description |
 |----------|-------------|
 | `scemas-dev` | start everything (db + schema + accounts + engine + dashboard) |
-| `scemas-db` / `scemas-db-stop` | start/stop postgres (auto-detects nix or docker) |
 | `scemas-engine` | rust engine on :3001 |
 | `scemas-dash` | next.js dashboard on :3000 |
 | `scemas-seed` | seed sample data (supports `--spike` and `--rate <n>`) |
@@ -171,6 +173,32 @@ see `.env.example`. defaults work out of the box for the web stack. desktop-spec
 | `SCEMAS_USE_EMBEDDED_POSTGRES` | `1` | desktop-only switch. `1` tries embedded postgres first, unless an external postgres is already reachable; `0` forces external postgres |
 | `POSTGRES_BIN_DIR` | unset, auto-detected | desktop-only path to a postgres 16 `bin/` directory containing `pg_ctl`, `initdb`, `postgres`, `createdb`, and `psql` |
 | `INTERNAL_RUST_URL` | `http://localhost:3001` | rust engine URL for remote auth fallback and sync. shared with dashboard. desktop also accepts legacy `SCEMAS_REMOTE_URL` |
+
+## architecture tests
+
+Run the following:
+
+```bash
+cargo test --all
+```
+
+### pipe-and-filter
+
+_location_: `crates/scemas-telemetry/src/validate.rs`
+
+chains `schema_validator`, `range_validator`, `timestamp_validator` via `and_then`. failure at any stage drops the reading. tests cover the happy path, each gate rejecting independently, and all four metric types.
+
+### blackboard
+
+_location_: `crates/scemas-alerting/src/blackboard.rs`
+
+knowledge sources (`evaluator`, `lifecycle`, `dispatcher`) coordinate through shared mutable state on the `Blackboard`. tests import from both `evaluator` and `lifecycle` to exercise cross-module reads/writes, rule replacement, and the full evaluate-post-lifecycle transition.
+
+### pac
+
+_location_: `crates/scemas-core/src/models.rs`
+
+the `Role` enum sits between the control layer (`AccessManager` / JWT) and the three presentation agents. route enforcement lives in `packages/dashboard/middleware.ts` and the `(operator)/`, `(admin)/`, `(public)/` route groups. tests verify role round-tripping through strings, rejection of unknown roles, and distinctness of all three agents.
 
 ## source of truth
 

@@ -405,3 +405,58 @@ pub struct AlertSubscription {
     pub min_severity: Severity,
     pub webhook_url: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // PAC (Presentation-Abstraction-Control) architecture tests
+    //
+    // SCEMAS has three PAC agents, each with a distinct presentation layer:
+    //   - Operator agent  → /dashboard, /alerts, /metrics, /subscriptions
+    //   - Admin agent     → /rules, /users, /health, /audit
+    //   - Public agent    → /display
+    //
+    // The Role enum is the abstraction layer between the control layer
+    // (AccessManager / JWT validation) and the presentation layer (Next.js
+    // route groups). Route enforcement itself lives on the frontend in
+    // packages/dashboard/middleware.ts and the (operator)/, (admin)/,
+    // (public)/ route group folders.
+    //
+    // These tests verify the abstraction layer: that roles parse correctly,
+    // serialize consistently, and represent three distinct agents.
+
+    #[test]
+    fn role_round_trips_through_string_representation() {
+        // JWT claims and DB values must serialize and deserialize consistently
+        // so the control layer always routes to the correct presentation agent.
+        let cases = [
+            ("operator", Role::Operator),
+            ("admin", Role::Admin),
+            ("viewer", Role::Viewer),
+        ];
+        for (s, role) in cases {
+            let parsed: Role = s.parse().expect("known role string must parse");
+            assert_eq!(parsed, role);
+            assert_eq!(role.to_string(), s);
+        }
+    }
+
+    #[test]
+    fn unrecognized_role_string_is_rejected_by_abstraction_layer() {
+        // The abstraction layer must reject unknown roles so the control layer
+        // never routes to an undefined agent.
+        assert!("superuser".parse::<Role>().is_err());
+        assert!("ADMIN".parse::<Role>().is_err());
+        assert!("".parse::<Role>().is_err());
+    }
+
+    #[test]
+    fn three_pac_agent_roles_are_distinct() {
+        // Each role maps to a separate PAC agent. No two roles should be equal,
+        // which would collapse two agents into one and break the PAC invariant.
+        assert_ne!(Role::Operator, Role::Admin);
+        assert_ne!(Role::Admin, Role::Viewer);
+        assert_ne!(Role::Operator, Role::Viewer);
+    }
+}
