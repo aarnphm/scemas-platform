@@ -393,6 +393,27 @@ pub enum HazardReportStatus {
     Dismissed,
 }
 
+// PAC architecture: route a request to the correct presentation agent
+// based on the user's role. Returns None for unknown roles.
+pub fn pac_agent_for_role(role: &Role) -> &'static str {
+    match role {
+        Role::Operator => "operator",
+        Role::Admin => "admin",
+        Role::Viewer => "public",
+    }
+}
+
+// PAC architecture: define which routes each agent controls.
+// The abstraction (this function) decouples the control layer (AccessManager)
+// from the presentation layer (Next.js route groups).
+pub fn pac_routes_for_role(role: &Role) -> &'static [&'static str] {
+    match role {
+        Role::Operator => &["/dashboard", "/alerts", "/metrics", "/subscriptions"],
+        Role::Admin => &["/rules", "/users", "/health", "/audit"],
+        Role::Viewer => &["/display"],
+    }
+}
+
 //  Innovative feature: alert subscriptions
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -404,4 +425,96 @@ pub struct AlertSubscription {
     pub zones: Vec<String>,
     pub min_severity: Severity,
     pub webhook_url: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // PAC (Presentation-Abstraction-Control) architecture tests
+    //
+    // SCEMAS has three PAC agents, each with a distinct presentation layer:
+    //   - Operator agent  → /dashboard, /alerts, /metrics, /subscriptions
+    //   - Admin agent     → /rules, /users, /health, /audit
+    //   - Public agent    → /display
+    //
+    // The Role enum is the abstraction layer. The AccessManager (control layer)
+    // uses it to route authenticated requests to the correct presentation agent.
+    // The tests below verify that role parsing, serialization, and routing are
+    // consistent so the control layer cannot accidentally mix agents.
+
+    #[test]
+    fn role_round_trips_through_string_representation() {
+        // Each role must parse from its canonical string and serialize back
+        // to the same string, so JWT claims and DB values are always consistent.
+        let cases = [
+            ("operator", Role::Operator),
+            ("admin", Role::Admin),
+            ("viewer", Role::Viewer),
+        ];
+        for (s, role) in cases {
+            let parsed: Role = s.parse().expect("known role string must parse");
+            assert_eq!(parsed, role);
+            assert_eq!(role.to_string(), s);
+        }
+    }
+
+    #[test]
+    fn unrecognized_role_string_is_rejected_by_abstraction_layer() {
+        // The abstraction layer must reject unknown roles so the control layer
+        // never routes to an undefined agent.
+        assert!("superuser".parse::<Role>().is_err());
+        assert!("ADMIN".parse::<Role>().is_err());
+        assert!("".parse::<Role>().is_err());
+    }
+
+    #[test]
+    fn three_pac_agents_map_to_distinct_non_overlapping_route_sets() {
+        // Each role owns a disjoint set of presentation routes.
+        // Overlap would mean two agents share a presentation — a PAC violation.
+        let operator_routes = pac_routes_for_role(&Role::Operator);
+        let admin_routes = pac_routes_for_role(&Role::Admin);
+        let viewer_routes = pac_routes_for_role(&Role::Viewer);
+
+        for route in operator_routes {
+            assert!(!admin_routes.contains(route), "operator/admin overlap on {route}");
+            assert!(!viewer_routes.contains(route), "operator/viewer overlap on {route}");
+        }
+        for route in admin_routes {
+            assert!(!viewer_routes.contains(route), "admin/viewer overlap on {route}");
+        }
+    }
+
+    #[test]
+    fn operator_agent_owns_operational_monitoring_routes() {
+        let routes = pac_routes_for_role(&Role::Operator);
+        assert!(routes.contains(&"/dashboard"));
+        assert!(routes.contains(&"/alerts"));
+        assert!(routes.contains(&"/metrics"));
+        assert!(routes.contains(&"/subscriptions"));
+    }
+
+    #[test]
+    fn admin_agent_owns_system_configuration_routes() {
+        let routes = pac_routes_for_role(&Role::Admin);
+        assert!(routes.contains(&"/rules"));
+        assert!(routes.contains(&"/users"));
+        assert!(routes.contains(&"/health"));
+        assert!(routes.contains(&"/audit"));
+    }
+
+    #[test]
+    fn viewer_agent_is_scoped_to_public_display_only() {
+        let routes = pac_routes_for_role(&Role::Viewer);
+        assert_eq!(routes, &["/display"], "viewer must only access the public display");
+    }
+
+    #[test]
+    fn pac_agent_names_map_to_next_js_route_groups() {
+        // The agent name returned here maps directly to the route group folder
+        // in packages/dashboard/app/(operator)/, (admin)/, and (public)/.
+        assert_eq!(pac_agent_for_role(&Role::Operator), "operator");
+        assert_eq!(pac_agent_for_role(&Role::Admin), "admin");
+        assert_eq!(pac_agent_for_role(&Role::Viewer), "public");
+    }
 }

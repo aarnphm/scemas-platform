@@ -126,6 +126,49 @@ both paths give you the same functions:
 
 see `.env.example`. defaults work out of the box for both nix and docker setups.
 
+## architecture tests
+
+unit tests that demonstrate each architectural pattern without a database. run with `cargo test --all`.
+
+### pipe-and-filter — `crates/scemas-telemetry/src/validate.rs`
+
+the telemetry pipeline composes three independent filter functions with `and_then`. each filter is a gate: failure stops the pipeline immediately and the reading is dropped.
+
+| test | what it demonstrates |
+|------|----------------------|
+| `pipeline_passes_a_fully_valid_reading` | happy path — all three filters accept a valid reading in sequence |
+| `pipeline_stops_at_schema_before_range_is_checked` | first failing gate wins; downstream filters never run |
+| `pipeline_stops_at_range_when_schema_passes` | filters are independent — schema passing does not excuse a range violation |
+| `pipeline_stops_at_timestamp_when_schema_and_range_pass` | every filter is a distinct gate regardless of position |
+| `range_filter_covers_all_four_metric_types` | the pipeline handles every metric type (`temperature`, `humidity`, `air_quality`, `noise_level`) |
+
+### blackboard — `crates/scemas-alerting/src/blackboard.rs`
+
+the blackboard is shared mutable state. knowledge sources (`evaluator`, `lifecycle`, `dispatcher`) read and write it without calling each other directly. the tests are cross-module — they import from both `evaluator` and `lifecycle` to show real coordination through the blackboard.
+
+| test | what it demonstrates |
+|------|----------------------|
+| `rules_loaded_into_blackboard_are_visible_to_evaluator` | the evaluator reads rules from the blackboard, not from a direct call |
+| `alerts_posted_by_evaluator_are_readable_by_other_knowledge_sources` | writes from one knowledge source are immediately visible to all others |
+| `full_workflow_evaluate_post_then_lifecycle_transition` | end-to-end: load rule → evaluate reading → post alert → lifecycle reads alert |
+| `removing_a_rule_prevents_future_alerts` | blackboard mutations are immediately visible; removed rules no longer fire |
+| `replace_rules_atomically_swaps_the_full_rule_set` | rule reload (used on startup and admin changes) replaces all entries atomically |
+| `empty_blackboard_produces_no_alerts` | the blackboard is the authoritative source of rules; no rules, no alerts |
+
+### pac (presentation-abstraction-control) — `crates/scemas-core/src/models.rs`
+
+the `Role` enum is the abstraction layer between the control layer (`AccessManager`) and the three presentation agents. two helper functions (`pac_agent_for_role`, `pac_routes_for_role`) make the routing contract explicit and testable.
+
+| test | what it demonstrates |
+|------|----------------------|
+| `role_round_trips_through_string_representation` | JWT claims and DB values serialize consistently for all three roles |
+| `unrecognized_role_string_is_rejected_by_abstraction_layer` | the abstraction layer rejects unknown roles before they reach an agent |
+| `three_pac_agents_map_to_distinct_non_overlapping_route_sets` | no two agents share a route — a PAC invariant |
+| `operator_agent_owns_operational_monitoring_routes` | operator → `/dashboard`, `/alerts`, `/metrics`, `/subscriptions` |
+| `admin_agent_owns_system_configuration_routes` | admin → `/rules`, `/users`, `/health`, `/audit` |
+| `viewer_agent_is_scoped_to_public_display_only` | viewer → `/display` only |
+| `pac_agent_names_map_to_next_js_route_groups` | ties the Rust role model to the `(operator)/`, `(admin)/`, `(public)/` Next.js route groups |
+
 ## source of truth
 
 all classes, attributes, methods, and relationships derive from the UML class diagram at [`docs/diagrams/class_diagram.puml`](docs/diagrams/class_diagram.puml). sequence diagrams and state charts in the same directory define interaction contracts.
