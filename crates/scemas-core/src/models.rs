@@ -393,27 +393,6 @@ pub enum HazardReportStatus {
     Dismissed,
 }
 
-// PAC architecture: route a request to the correct presentation agent
-// based on the user's role. Returns None for unknown roles.
-pub fn pac_agent_for_role(role: &Role) -> &'static str {
-    match role {
-        Role::Operator => "operator",
-        Role::Admin => "admin",
-        Role::Viewer => "public",
-    }
-}
-
-// PAC architecture: define which routes each agent controls.
-// The abstraction (this function) decouples the control layer (AccessManager)
-// from the presentation layer (Next.js route groups).
-pub fn pac_routes_for_role(role: &Role) -> &'static [&'static str] {
-    match role {
-        Role::Operator => &["/dashboard", "/alerts", "/metrics", "/subscriptions"],
-        Role::Admin => &["/rules", "/users", "/health", "/audit"],
-        Role::Viewer => &["/display"],
-    }
-}
-
 //  Innovative feature: alert subscriptions
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -438,15 +417,19 @@ mod tests {
     //   - Admin agent     → /rules, /users, /health, /audit
     //   - Public agent    → /display
     //
-    // The Role enum is the abstraction layer. The AccessManager (control layer)
-    // uses it to route authenticated requests to the correct presentation agent.
-    // The tests below verify that role parsing, serialization, and routing are
-    // consistent so the control layer cannot accidentally mix agents.
+    // The Role enum is the abstraction layer between the control layer
+    // (AccessManager / JWT validation) and the presentation layer (Next.js
+    // route groups). Route enforcement itself lives on the frontend in
+    // packages/dashboard/middleware.ts and the (operator)/, (admin)/,
+    // (public)/ route group folders.
+    //
+    // These tests verify the abstraction layer: that roles parse correctly,
+    // serialize consistently, and represent three distinct agents.
 
     #[test]
     fn role_round_trips_through_string_representation() {
-        // Each role must parse from its canonical string and serialize back
-        // to the same string, so JWT claims and DB values are always consistent.
+        // JWT claims and DB values must serialize and deserialize consistently
+        // so the control layer always routes to the correct presentation agent.
         let cases = [
             ("operator", Role::Operator),
             ("admin", Role::Admin),
@@ -469,65 +452,11 @@ mod tests {
     }
 
     #[test]
-    fn three_pac_agents_map_to_distinct_non_overlapping_route_sets() {
-        // Each role owns a disjoint set of presentation routes.
-        // Overlap would mean two agents share a presentation — a PAC violation.
-        let operator_routes = pac_routes_for_role(&Role::Operator);
-        let admin_routes = pac_routes_for_role(&Role::Admin);
-        let viewer_routes = pac_routes_for_role(&Role::Viewer);
-
-        for route in operator_routes {
-            assert!(
-                !admin_routes.contains(route),
-                "operator/admin overlap on {route}"
-            );
-            assert!(
-                !viewer_routes.contains(route),
-                "operator/viewer overlap on {route}"
-            );
-        }
-        for route in admin_routes {
-            assert!(
-                !viewer_routes.contains(route),
-                "admin/viewer overlap on {route}"
-            );
-        }
-    }
-
-    #[test]
-    fn operator_agent_owns_operational_monitoring_routes() {
-        let routes = pac_routes_for_role(&Role::Operator);
-        assert!(routes.contains(&"/dashboard"));
-        assert!(routes.contains(&"/alerts"));
-        assert!(routes.contains(&"/metrics"));
-        assert!(routes.contains(&"/subscriptions"));
-    }
-
-    #[test]
-    fn admin_agent_owns_system_configuration_routes() {
-        let routes = pac_routes_for_role(&Role::Admin);
-        assert!(routes.contains(&"/rules"));
-        assert!(routes.contains(&"/users"));
-        assert!(routes.contains(&"/health"));
-        assert!(routes.contains(&"/audit"));
-    }
-
-    #[test]
-    fn viewer_agent_is_scoped_to_public_display_only() {
-        let routes = pac_routes_for_role(&Role::Viewer);
-        assert_eq!(
-            routes,
-            &["/display"],
-            "viewer must only access the public display"
-        );
-    }
-
-    #[test]
-    fn pac_agent_names_map_to_next_js_route_groups() {
-        // The agent name returned here maps directly to the route group folder
-        // in packages/dashboard/app/(operator)/, (admin)/, and (public)/.
-        assert_eq!(pac_agent_for_role(&Role::Operator), "operator");
-        assert_eq!(pac_agent_for_role(&Role::Admin), "admin");
-        assert_eq!(pac_agent_for_role(&Role::Viewer), "public");
+    fn three_pac_agent_roles_are_distinct() {
+        // Each role maps to a separate PAC agent. No two roles should be equal,
+        // which would collapse two agents into one and break the PAC invariant.
+        assert_ne!(Role::Operator, Role::Admin);
+        assert_ne!(Role::Admin, Role::Viewer);
+        assert_ne!(Role::Operator, Role::Viewer);
     }
 }

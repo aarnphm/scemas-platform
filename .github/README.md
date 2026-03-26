@@ -157,17 +157,13 @@ the blackboard is shared mutable state. knowledge sources (`evaluator`, `lifecyc
 
 ### pac (presentation-abstraction-control) — `crates/scemas-core/src/models.rs`
 
-the `Role` enum is the abstraction layer between the control layer (`AccessManager`) and the three presentation agents. two helper functions (`pac_agent_for_role`, `pac_routes_for_role`) make the routing contract explicit and testable.
+the `Role` enum is the abstraction layer between the control layer (`AccessManager` / JWT validation) and the three presentation agents. route enforcement itself lives on the frontend in `packages/dashboard/middleware.ts` and the `(operator)/`, `(admin)/`, `(public)/` Next.js route groups.
 
 | test | what it demonstrates |
 |------|----------------------|
-| `role_round_trips_through_string_representation` | JWT claims and DB values serialize consistently for all three roles |
-| `unrecognized_role_string_is_rejected_by_abstraction_layer` | the abstraction layer rejects unknown roles before they reach an agent |
-| `three_pac_agents_map_to_distinct_non_overlapping_route_sets` | no two agents share a route — a PAC invariant |
-| `operator_agent_owns_operational_monitoring_routes` | operator → `/dashboard`, `/alerts`, `/metrics`, `/subscriptions` |
-| `admin_agent_owns_system_configuration_routes` | admin → `/rules`, `/users`, `/health`, `/audit` |
-| `viewer_agent_is_scoped_to_public_display_only` | viewer → `/display` only |
-| `pac_agent_names_map_to_next_js_route_groups` | ties the Rust role model to the `(operator)/`, `(admin)/`, `(public)/` Next.js route groups |
+| `role_round_trips_through_string_representation` | JWT claims and DB values serialize and deserialize consistently for all three roles |
+| `unrecognized_role_string_is_rejected_by_abstraction_layer` | the abstraction layer rejects unknown roles so the control layer never routes to an undefined agent |
+| `three_pac_agent_roles_are_distinct` | each role maps to a separate agent — no two roles are equal, which would collapse two agents into one |
 
 ## source of truth
 
