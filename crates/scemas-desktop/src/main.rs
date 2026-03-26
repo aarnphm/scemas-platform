@@ -105,7 +105,15 @@ fn main() {
                     url
                 } else {
                     // start embedded postgres
-                    let pg_bin_dir = find_pg_bin_dir()
+                    let bundled_pg = app_handle
+                        .path()
+                        .resolve(
+                            "resources/pg/bin",
+                            tauri::path::BaseDirectory::Resource,
+                        )
+                        .ok()
+                        .filter(|p| p.join("pg_ctl").exists());
+                    let pg_bin_dir = find_pg_bin_dir(bundled_pg.as_deref())
                         .expect(
                             "postgres not found. either:\n  \
                              - set POSTGRES_BIN_DIR to your postgres bin directory\n  \
@@ -156,7 +164,7 @@ fn main() {
                 });
             });
 
-            tray::create_tray(&app.handle())?;
+            tray::create_tray(app.handle())?;
 
             Ok(())
         })
@@ -206,6 +214,7 @@ fn main() {
             commands::reads::public_zone_history,
             commands::remote::auth_login,
             commands::remote::auth_signup,
+            commands::remote::tray_set_auth,
         ])
         .build(tauri::generate_context!())
         .expect("error building tauri application");
@@ -249,12 +258,11 @@ struct Secrets {
 fn load_or_generate_secrets(data_dir: &std::path::Path) -> Secrets {
     let secrets_path = data_dir.join("secrets.json");
 
-    if secrets_path.exists() {
-        if let Ok(data) = std::fs::read_to_string(&secrets_path) {
-            if let Ok(secrets) = serde_json::from_str::<Secrets>(&data) {
-                return secrets;
-            }
-        }
+    if secrets_path.exists()
+        && let Ok(data) = std::fs::read_to_string(&secrets_path)
+        && let Ok(secrets) = serde_json::from_str::<Secrets>(&data)
+    {
+        return secrets;
     }
 
     let jwt: [u8; 32] = rand::random();
@@ -312,10 +320,10 @@ async fn ensure_default_accounts(runtime: &ScemasRuntime) {
 
 fn find_repo_root() -> PathBuf {
     let compile_time = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    if let Some(root) = compile_time.parent().and_then(|p| p.parent()) {
-        if root.join("data").exists() {
-            return root.to_path_buf();
-        }
+    if let Some(root) = compile_time.parent().and_then(|p| p.parent())
+        && root.join("data").exists()
+    {
+        return root.to_path_buf();
     }
 
     if let Ok(cwd) = std::env::current_dir() {
@@ -357,8 +365,13 @@ fn find_available_port() -> u16 {
         .port()
 }
 
-/// find postgres bin directory. checks: POSTGRES_BIN_DIR env, PATH, well-known locations.
-fn find_pg_bin_dir() -> Option<PathBuf> {
+/// find postgres bin directory. checks: bundled resource, POSTGRES_BIN_DIR env, PATH, well-known locations.
+fn find_pg_bin_dir(bundled: Option<&std::path::Path>) -> Option<PathBuf> {
+    if let Some(dir) = bundled {
+        tracing::info!(dir = %dir.display(), "using bundled postgres from app resources");
+        return Some(dir.to_path_buf());
+    }
+
     if let Ok(dir) = std::env::var("POSTGRES_BIN_DIR") {
         let p = PathBuf::from(&dir);
         if p.join("pg_ctl").exists() {

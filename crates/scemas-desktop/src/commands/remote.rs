@@ -2,12 +2,25 @@ use std::sync::Arc;
 
 use scemas_server::ScemasRuntime;
 use scemas_server::access::{LoginRequest, SignupRequest};
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::auth::{AuthSession, RemoteAuth};
 use crate::error::DesktopError;
+use crate::tray;
 
 type Result<T> = std::result::Result<T, DesktopError>;
+
+#[tauri::command]
+pub fn tray_set_auth(app: AppHandle, logged_in: bool, email: Option<String>) {
+    if logged_in {
+        tray::update_auth_menu(&app, Some(tray::AuthInfo {
+            email: email.unwrap_or_default(),
+            status: "operational".into(),
+        }));
+    } else {
+        tray::update_auth_menu(&app, None);
+    }
+}
 
 /// login: tries local AccessManager first (embedded postgres).
 /// falls back to remote cloudflare API if local auth fails with a non-auth error.

@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts'
+import { PeriodSelector } from '@/components/period-selector'
+import { CHART_PERIODS, makeChartTimeFormatter, periodLabel } from '@/lib/chart-utils'
 import { useTauriQuery } from '@/lib/tauri'
 
 interface AuditLog {
@@ -49,25 +51,22 @@ function formatTimestamp(isoString: string) {
   return `${h}:${m}:${s}`
 }
 
-function formatHour(isoString: string) {
-  const date = new Date(isoString)
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-}
-
 function formatDetails(details: Record<string, unknown> | null) {
   if (!details) return '(no details)'
   return JSON.stringify(details, null, 2)
 }
 
 export function AuditPage() {
+  const [freqHours, setFreqHours] = useState(24)
   const audit = useTauriQuery<CursorPage>('audit_list', { limit: 50 })
   const frequency = useTauriQuery<AuditFrequencyPoint[]>(
     'audit_frequency',
-    { hours: 24 },
-    { refetchInterval: 30_000 },
+    { hours: freqHours },
+    { refetchInterval: 30_000, placeholderData: (prev: AuditFrequencyPoint[] | undefined) => prev },
   )
 
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const fmt = useMemo(() => makeChartTimeFormatter(freqHours), [freqHours])
 
   const items = audit.data?.items ?? []
   const freqData = frequency.data ?? []
@@ -85,10 +84,11 @@ export function AuditPage() {
 
       <div className="rounded-lg border p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium">events (last 24h)</h2>
+          <h2 className="text-sm font-medium text-balance">events ({periodLabel(freqHours)})</h2>
           <div className="flex items-center gap-3 text-xs tabular-nums text-muted-foreground">
             <span>{totalSuccess} success</span>
             <span>{totalErrors} errors</span>
+            <PeriodSelector periods={CHART_PERIODS} value={freqHours} onChange={setFreqHours} />
           </div>
         </div>
         <div className="mt-2">
@@ -100,9 +100,9 @@ export function AuditPage() {
             <ResponsiveContainer width="100%" height={192}>
               <BarChart data={freqData} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="hour" tickFormatter={formatHour} tick={{ fontSize: 11 }} />
+                <XAxis dataKey="hour" tickFormatter={fmt} tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} width={30} allowDecimals={false} />
-                <Tooltip labelFormatter={formatHour} contentStyle={{ fontSize: 12 }} />
+                <Tooltip labelFormatter={fmt} contentStyle={{ fontSize: 12 }} />
                 <Bar dataKey="success" fill="#60a5fa" stackId="events" radius={[2, 2, 0, 0]} />
                 <Bar dataKey="errors" fill="#ef4444" stackId="events" radius={[2, 2, 0, 0]} />
               </BarChart>

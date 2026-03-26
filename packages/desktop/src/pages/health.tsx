@@ -7,6 +7,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { useMemo } from 'react'
+import { makeChartTimeFormatter } from '@/lib/chart-utils'
 import { useHealth, useTauriQuery } from '@/lib/tauri'
 
 interface PlatformStatusRow {
@@ -32,6 +34,7 @@ export function HealthPage() {
   const acceptedPct = received > 0 ? (accepted / received) * 100 : 0
   const rejectedPct = received > 0 ? (rejected / received) * 100 : 0
 
+  const fmt = useMemo(() => makeChartTimeFormatter(24), [])
   const chartData = [...statusRows]
     .reverse()
     .map(row => ({ time: row.time, latencyMs: row.latencyMs ?? 0 }))
@@ -92,9 +95,9 @@ export function HealthPage() {
           <ResponsiveContainer width="100%" height={224}>
             <AreaChart data={chartData} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="time" tickFormatter={formatTime} tick={{ fontSize: 11 }} />
+              <XAxis dataKey="time" tickFormatter={fmt} tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} width={40} />
-              <Tooltip labelFormatter={formatTime} contentStyle={{ fontSize: 12 }} />
+              <Tooltip labelFormatter={fmt} contentStyle={{ fontSize: 12 }} />
               <Area
                 type="monotone"
                 dataKey="latencyMs"
@@ -203,9 +206,4 @@ function FunnelBar({
       </span>
     </div>
   )
-}
-
-function formatTime(isoString: string) {
-  const date = new Date(isoString)
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }

@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { invoke } from '@tauri-apps/api/core'
 import { useState, useMemo, useCallback } from 'react'
+import { PeriodSelector } from '@/components/period-selector'
+import { CHART_PERIODS } from '@/lib/chart-utils'
 import { useTauriQuery } from '@/lib/tauri'
 import { useAuthStore } from '@/store/auth'
 
@@ -31,12 +33,6 @@ const SEVERITY: Record<number, { label: string; cls: string }> = {
   3: { label: 'critical', cls: 'bg-red-500/15 text-red-700' },
 }
 
-const TIME_PERIODS = [
-  { label: '1h', hours: 1 },
-  { label: '24h', hours: 24 },
-  { label: '3d', hours: 72 },
-  { label: '7d', hours: 168 },
-] as const
 
 type SortMode = 'latest' | 'severity' | 'oldest'
 
@@ -225,21 +221,7 @@ export function AlertsPage() {
               <option value="oldest">oldest first</option>
             </select>
             {!live && (
-              <div className="flex items-center rounded-md border border-input">
-                {TIME_PERIODS.map(p => (
-                  <button
-                    key={p.label}
-                    onClick={() => setHours(p.hours)}
-                    className={`h-7 px-2 text-xs font-medium transition-colors first:rounded-l-md last:rounded-r-md ${
-                      hours === p.hours
-                        ? 'bg-foreground text-background'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
+              <PeriodSelector periods={CHART_PERIODS} value={hours} onChange={setHours} />
             )}
             <button
               onClick={() => setLive(v => !v)}

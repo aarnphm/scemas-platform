@@ -1,12 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useTauriQuery } from '@/lib/tauri'
-
-// TODO: save handler needs a tauri command (e.g. subscriptions_upsert)
 
 const METRIC_TYPES = ['temperature', 'humidity', 'air_quality', 'noise_level']
 
 export function SubscriptionsPage() {
-  const zones = useTauriQuery<string[]>('public_zone_list', {})
+  const readings = useTauriQuery<{ zone: string }[]>('telemetry_get_latest', { limit: 50 })
+  const zones = useMemo(() => Array.from(new Set((readings.data ?? []).map(r => r.zone))).sort(), [readings.data])
 
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(METRIC_TYPES)
   const [selectedZones, setSelectedZones] = useState<string[]>([])
@@ -47,7 +46,7 @@ export function SubscriptionsPage() {
         <div className="rounded-lg border p-4 space-y-3">
           <h2 className="text-sm font-medium">zones</h2>
           <div className="space-y-2 max-h-48 overflow-y-auto">
-            {(zones.data ?? []).map(z => (
+            {zones.map(z => (
               <label key={z} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -55,10 +54,10 @@ export function SubscriptionsPage() {
                   onChange={() => toggleZone(z)}
                   className="rounded border-input"
                 />
-                {z}
+                {z.replaceAll('_', ' ')}
               </label>
             ))}
-            {zones.isLoading && <p className="text-xs text-muted-foreground">loading zones...</p>}
+            {readings.isLoading && <p className="text-xs text-muted-foreground">loading zones...</p>}
           </div>
         </div>
       </div>

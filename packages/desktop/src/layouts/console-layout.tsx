@@ -6,6 +6,7 @@ const operatorNav = [
   { label: 'dashboard', path: '/dashboard' },
   { label: 'alerts', path: '/alerts' },
   { label: 'metrics', path: '/metrics' },
+  { label: 'subscriptions', path: '/subscriptions' },
 ]
 
 const adminNav = [
@@ -46,21 +47,6 @@ export function ConsoleLayout() {
             <NavItem key={item.path} {...item} active={location.pathname.startsWith(item.path)} />
           ))}
         </nav>
-
-        {!isAdmin && (
-          <div className="px-3 pb-2">
-            <Link
-              to="/subscriptions"
-              className={`block rounded-md border px-3 py-1.5 text-center text-sm transition-colors ${
-                location.pathname === '/subscriptions'
-                  ? 'border-sidebar-accent bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                  : 'border-border text-sidebar-foreground/70 hover:bg-sidebar-accent/50'
-              }`}
-            >
-              subscriptions
-            </Link>
-          </div>
-        )}
 
         <div className="space-y-2 border-t p-3">
           <div className="flex items-center justify-between text-xs">

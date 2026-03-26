@@ -996,14 +996,18 @@ async fn dev_up(root: &Path, debug: bool, args: DevRunArgs) -> Result<(), CliErr
     }
 }
 
-async fn dev_desktop(root: &Path, _debug: bool) -> Result<(), CliError> {
+async fn dev_desktop(root: &Path, debug: bool) -> Result<(), CliError> {
     require_command("cargo")?;
 
-    // find postgres binaries so embedded postgres works inside tauri
+    // start postgres + apply schema + sync desktop schema.sql
+    start_db(root, debug)?;
+    tracing::info!("waiting for postgres");
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    ensure_database(root)?;
+    sync_desktop_schema(root)?;
+
     let pg_bin_dir = find_pg_bin_dir_for_desktop();
-    tracing::info!(pg_bin = %pg_bin_dir, "postgres binaries for embedded mode");
-    tracing::info!("starting desktop app (embedded postgres + tauri + vite)");
-    tracing::info!("set SCEMAS_USE_EMBEDDED_POSTGRES=0 to use external postgres instead");
+    tracing::info!("starting desktop app (tauri + vite)");
     tracing::info!("ctrl+c to stop");
 
     let mut tauri = TokioCommand::new("cargo")
@@ -1040,10 +1044,10 @@ async fn dev_desktop(root: &Path, _debug: bool) -> Result<(), CliError> {
 
 fn find_pg_bin_dir_for_desktop() -> String {
     // check POSTGRES_BIN_DIR env (set by flake.nix)
-    if let Ok(dir) = env::var("POSTGRES_BIN_DIR") {
-        if Path::new(&dir).join("pg_ctl").exists() {
-            return dir;
-        }
+    if let Ok(dir) = env::var("POSTGRES_BIN_DIR")
+        && Path::new(&dir).join("pg_ctl").exists()
+    {
+        return dir;
     }
     // search PATH
     if let Ok(path_var) = env::var("PATH") {
@@ -1124,6 +1128,18 @@ fn ensure_database(root: &Path) -> Result<(), CliError> {
             OsString::from("--filter"),
             OsString::from("@scemas/db"),
             OsString::from("ensure-users"),
+        ],
+    )
+}
+
+fn sync_desktop_schema(root: &Path) -> Result<(), CliError> {
+    run_checked(
+        root,
+        "bun",
+        &[
+            OsString::from("--filter"),
+            OsString::from("@scemas/db"),
+            OsString::from("sync-desktop-schema"),
         ],
     )
 }

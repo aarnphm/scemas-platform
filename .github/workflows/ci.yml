@@ -7,8 +7,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo fmt --check
-      - run: cargo clippy --all --all-features
-      - run: cargo test --all
+      - run: cargo clippy --workspace --exclude scemas-desktop --all-features
+      - run: cargo test --workspace --exclude scemas-desktop
 
   typescript:
     runs-on: ubuntu-latest

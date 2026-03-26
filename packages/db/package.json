@@ -10,8 +10,9 @@
   },
   "scripts": {
     "ensure-users": "bun run scripts/ensure-users.ts",
+    "sync-desktop-schema": "bun run scripts/sync-desktop-schema.ts",
     "generate": "drizzle-kit generate",
-    "push": "drizzle-kit push",
+    "push": "drizzle-kit push 2>&1 | sed $'s/\\x1b\\[[0-9;]*[A-Za-z]//g'",
     "studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit"
   },

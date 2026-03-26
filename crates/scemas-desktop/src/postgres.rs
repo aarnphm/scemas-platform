@@ -20,10 +20,24 @@ pub enum PgError {
 
 pub struct EmbeddedPostgres {
     pg_bin_dir: PathBuf,
+    pg_lib_dir: Option<PathBuf>,
     pg_ctl: PathBuf,
     data_dir: PathBuf,
     port: u16,
     database: String,
+}
+
+fn pg_cmd(bin: &Path, lib_dir: &Option<PathBuf>) -> Command {
+    let mut cmd = Command::new(bin);
+    if let Some(lib) = lib_dir {
+        let key = if cfg!(target_os = "macos") {
+            "DYLD_LIBRARY_PATH"
+        } else {
+            "LD_LIBRARY_PATH"
+        };
+        cmd.env(key, lib);
+    }
+    cmd
 }
 
 impl EmbeddedPostgres {
@@ -41,13 +55,18 @@ impl EmbeddedPostgres {
             return Err(PgError::NotFound(pg_ctl));
         }
 
+        let pg_lib_dir = {
+            let lib = pg_bin_dir.parent().map(|p| p.join("lib"));
+            lib.filter(|p| p.exists())
+        };
+
         let pg_data = data_dir.join("pg-data");
         std::fs::create_dir_all(&pg_data)?;
 
         // initdb if fresh
         if !pg_data.join("PG_VERSION").exists() {
             tracing::info!(?pg_data, "initializing postgres data directory");
-            let output = Command::new(&initdb)
+            let output = pg_cmd(&initdb, &pg_lib_dir)
                 .arg("-D")
                 .arg(&pg_data)
                 .arg("--no-locale")
@@ -67,7 +86,7 @@ impl EmbeddedPostgres {
         // clean up stale PID from previous crash
         let pid_file = pg_data.join("postmaster.pid");
         if pid_file.exists() {
-            let status = Command::new(&pg_ctl)
+            let status = pg_cmd(&pg_ctl, &pg_lib_dir)
                 .arg("status")
                 .arg("-D")
                 .arg(&pg_data)
@@ -83,7 +102,7 @@ impl EmbeddedPostgres {
             } else {
                 // postgres IS running (from a previous session?). stop it first.
                 tracing::info!("stopping previously running postgres");
-                let _ = Command::new(&pg_ctl)
+                let _ = pg_cmd(&pg_ctl, &pg_lib_dir)
                     .arg("stop")
                     .arg("-D")
                     .arg(&pg_data)
@@ -100,7 +119,7 @@ impl EmbeddedPostgres {
 
         // start postgres
         tracing::info!(port, "starting embedded postgres");
-        let output = Command::new(&pg_ctl)
+        let output = pg_cmd(&pg_ctl, &pg_lib_dir)
             .arg("start")
             .arg("-D")
             .arg(&pg_data)
@@ -120,7 +139,7 @@ impl EmbeddedPostgres {
         }
 
         // create database if needed
-        let check = Command::new(pg_bin_dir.join("psql"))
+        let check = pg_cmd(&pg_bin_dir.join("psql"), &pg_lib_dir)
             .arg("-h")
             .arg("/tmp")
             .arg("-p")
@@ -142,7 +161,7 @@ impl EmbeddedPostgres {
 
         if !exists {
             tracing::info!(database, "creating database");
-            let output = Command::new(&createdb)
+            let output = pg_cmd(&createdb, &pg_lib_dir)
                 .arg("-h")
                 .arg("/tmp")
                 .arg("-p")
@@ -165,6 +184,7 @@ impl EmbeddedPostgres {
 
         Ok(Self {
             pg_bin_dir: pg_bin_dir.to_path_buf(),
+            pg_lib_dir,
             pg_ctl,
             data_dir: pg_data,
             port,
@@ -182,7 +202,7 @@ impl EmbeddedPostgres {
     }
 
     pub async fn apply_schema(&self, sql_path: &Path) -> Result<(), PgError> {
-        let check = Command::new(self.pg_bin_dir.join("psql"))
+        let check = pg_cmd(&self.pg_bin_dir.join("psql"), &self.pg_lib_dir)
             .arg("-h")
             .arg("/tmp")
             .arg("-p")
@@ -206,7 +226,7 @@ impl EmbeddedPostgres {
         }
 
         tracing::info!(?sql_path, "applying schema");
-        let output = Command::new(self.pg_bin_dir.join("psql"))
+        let output = pg_cmd(&self.pg_bin_dir.join("psql"), &self.pg_lib_dir)
             .arg("-h")
             .arg("/tmp")
             .arg("-p")
@@ -233,7 +253,7 @@ impl EmbeddedPostgres {
 
     pub async fn stop(&mut self) -> Result<(), PgError> {
         tracing::info!("stopping embedded postgres");
-        let output = Command::new(&self.pg_ctl)
+        let output = pg_cmd(&self.pg_ctl, &self.pg_lib_dir)
             .arg("stop")
             .arg("-D")
             .arg(&self.data_dir)

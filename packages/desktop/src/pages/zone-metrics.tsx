@@ -10,6 +10,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
+import { PeriodSelector } from '@/components/period-selector'
+import { CHART_PERIODS, makeChartTimeFormatter } from '@/lib/chart-utils'
 import { useTauriQuery } from '@/lib/tauri'
 
 interface TimeSeriesPoint {
@@ -50,14 +52,6 @@ const METRIC_COLORS: Record<string, string> = {
   noiseLevel: '#a0430a',
 }
 
-const PERIOD_OPTIONS = [
-  { label: '3h', value: 3 },
-  { label: '6h', value: 6 },
-  { label: '12h', value: 12 },
-  { label: '24h', value: 24 },
-  { label: '7d', value: 168 },
-  { label: '30d', value: 720 },
-] as const
 
 export function ZoneMetricsPage() {
   const { zone } = useParams({ strict: false })
@@ -69,17 +63,8 @@ export function ZoneMetricsPage() {
     { placeholderData: prev => prev },
   )
 
-  const chartData = useMemo(
-    () =>
-      (series.data ?? []).map(pt => ({
-        time: new Date(pt.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        temperature: pt.temperature,
-        humidity: pt.humidity,
-        airQuality: pt.airQuality,
-        noiseLevel: pt.noiseLevel,
-      })),
-    [series.data],
-  )
+  const fmt = useMemo(() => makeChartTimeFormatter(hours), [hours])
+  const chartData = series.data ?? []
 
   const summaries = useMemo(() => {
     const result: Record<string, { avg: number; count: number; latest: number | null }> = {}
@@ -114,21 +99,7 @@ export function ZoneMetricsPage() {
       <div className="rounded-lg border p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium">time series</h2>
-          <div className="flex items-center gap-1">
-            {PERIOD_OPTIONS.map(o => (
-              <button
-                key={o.value}
-                onClick={() => setHours(o.value)}
-                className={`h-7 rounded-md px-2 text-xs font-medium transition-colors ${
-                  hours === o.value
-                    ? 'border border-input bg-background shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+          <PeriodSelector periods={CHART_PERIODS} value={hours} onChange={setHours} />
         </div>
         <div className="relative h-80">
           {series.isFetching && (
@@ -139,15 +110,15 @@ export function ZoneMetricsPage() {
           {chartData.length === 0 && !series.isFetching ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-sm text-muted-foreground text-pretty">
-                no data for {(zone ?? '').replaceAll('_', ' ')}, last{' '}
-                {PERIOD_OPTIONS.find(o => o.value === hours)?.label ?? `${hours}h`}
+                no data for {(zone ?? '').replaceAll('_', ' ')},{' '}
+                {CHART_PERIODS.find(o => o.hours === hours)?.label ?? `${hours}h`}
               </p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="time" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="time" tickFormatter={fmt} tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />

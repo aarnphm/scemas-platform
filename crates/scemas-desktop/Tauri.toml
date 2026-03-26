@@ -1,0 +1,57 @@
+identifier = "dev.scemas.desktop"
+
+[build]
+frontendDist = "../../packages/desktop/dist"
+devUrl = "http://localhost:5173"
+beforeBuildCommand = "bun --filter @scemas/desktop build"
+beforeDevCommand = "bun --filter @scemas/desktop dev"
+
+[[app.windows]]
+label = "main"
+title = "SCEMAS"
+width = 1280
+height = 800
+minWidth = 900
+minHeight = 600
+resizable = true
+fullscreen = false
+titleBarStyle = "overlay"
+hiddenTitle = true
+
+[app.security]
+csp = ""
+
+[bundle]
+active = true
+targets = "all"
+icon = [
+  "icons/32x32.png",
+  "icons/128x128.png",
+  "icons/128x128@2x.png",
+  "icons/icon.icns",
+  "icons/icon.ico",
+]
+resources = [
+  "resources/schema.sql",
+  "resources/pg/bin/*",
+  "resources/pg/lib/*",
+  "../../data/hamilton-sensor-catalog.json",
+]
+
+[bundle.macOS]
+minimumSystemVersion = "10.15"
+
+[bundle.windows.webviewInstallMode]
+type = "downloadBootstrapper"
+
+[plugins.updater]
+endpoints = [
+  "https://github.com/aarnphm/scemas-platform/releases/latest/download/latest.json",
+]
+pubkey = ""
+
+[plugins.updater.windows]
+installMode = "passive"
+
+[plugins."deep-link".desktop]
+schemes = ["scemas"]
