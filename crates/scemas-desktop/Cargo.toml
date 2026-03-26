@@ -1,0 +1,46 @@
+[package]
+name = "scemas-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[build-dependencies]
+tauri-build = { workspace = true, features = [] }
+
+[dependencies]
+# workspace crates
+scemas-core = { path = "../scemas-core" }
+scemas-telemetry = { path = "../scemas-telemetry" }
+scemas-alerting = { path = "../scemas-alerting" }
+scemas-server = { path = "../scemas-server" }
+
+# tauri
+tauri = { workspace = true, features = ["tray-icon"] }
+tauri-plugin-store = { workspace = true }
+tauri-plugin-notification = { workspace = true }
+tauri-plugin-global-shortcut = { workspace = true }
+tauri-plugin-autostart = { workspace = true }
+tauri-plugin-deep-link = { workspace = true }
+tauri-plugin-updater = { workspace = true }
+
+# database
+sqlx = { workspace = true }
+dirs = { workspace = true }
+
+# async
+tokio = { workspace = true }
+
+# serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# http (for remote auth)
+reqwest = { workspace = true }
+
+# misc
+uuid = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+rand = { workspace = true }

@@ -6,14 +6,14 @@ import { PlatformHealthChart } from '@/components/charts/platform-health-chart'
 export function IngestionFunnelWrapper({
   stats,
 }: {
-  stats: { total_received: number; total_accepted: number; total_rejected: number }
+  stats: { totalReceived: number; totalAccepted: number; totalRejected: number }
 }) {
   return (
     <IngestionFunnelChart
       stats={{
-        received: stats.total_received,
-        accepted: stats.total_accepted,
-        rejected: stats.total_rejected,
+        received: stats.totalReceived,
+        accepted: stats.totalAccepted,
+        rejected: stats.totalRejected,
       }}
     />
   )

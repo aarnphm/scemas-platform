@@ -69,6 +69,19 @@
       pgCtl = pkgs.lib.getExe' pkgs.postgresql_16 "pg_ctl";
       initdb = pkgs.lib.getExe' pkgs.postgresql_16 "initdb";
       createdb = pkgs.lib.getExe' pkgs.postgresql_16 "createdb";
+      isDarwin = pkgs.stdenv.isDarwin;
+      isLinux = pkgs.stdenv.isLinux;
+      # tauri 2.x needs platform-specific webview libs
+      tauriDeps =
+        pkgs.lib.optionals isLinux (with pkgs; [
+          webkitgtk_4_1
+          libappindicator-gtk3
+          librsvg
+          patchelf
+        ])
+        ++ pkgs.lib.optionals isDarwin [
+          pkgs.apple-sdk_15
+        ];
     in {
       default = pkgs.mkShell {
         packages = with pkgs; [
@@ -77,7 +90,9 @@
           postgresBin
           pkg-config openssl python3
           scemas
-        ];
+          # tauri cli + desktop deps
+          cargo-tauri
+        ] ++ tauriDeps;
         env = {
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
           PGPORT = "5432";
@@ -96,7 +111,7 @@
           if [ -n "''${BASH_VERSION:-}" ] && [ -f "${scemas}/share/bash-completion/completions/scemas" ]; then
             source "${scemas}/share/bash-completion/completions/scemas"
           fi
-          echo "[scemas] ready. try: scemas --help, scemas dev up, scemas dev up --reload"
+          echo "[scemas] ready. try: scemas --help, scemas dev up, scemas dev desktop"
         '';
       };
     });

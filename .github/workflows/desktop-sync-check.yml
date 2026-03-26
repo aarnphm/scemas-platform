@@ -1,0 +1,94 @@
+name: desktop sync check
+
+on:
+  pull_request:
+    paths:
+      - "packages/dashboard/components/**"
+      - "packages/dashboard/app/**"
+      - "packages/dashboard/server/routers/**"
+      - "packages/dashboard/server/data-distribution-manager.ts"
+      - "packages/dashboard/app/globals.css"
+      - "packages/db/src/schema.ts"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: check for desktop-impacting changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+
+            const dashboardComponents = files.filter(f =>
+              f.filename.startsWith('packages/dashboard/components/')
+            );
+            const dashboardRouters = files.filter(f =>
+              f.filename.startsWith('packages/dashboard/server/routers/')
+            );
+            const schemaChanges = files.filter(f =>
+              f.filename === 'packages/db/src/schema.ts'
+            );
+            const cssChanges = files.filter(f =>
+              f.filename === 'packages/dashboard/app/globals.css'
+            );
+
+            const sections = [];
+
+            if (dashboardComponents.length > 0) {
+              const list = dashboardComponents.map(f => `- \`${f.filename}\``).join('\n');
+              sections.push(`### components changed\n${list}\n\nthe desktop app (\`packages/desktop/\`) mirrors dashboard components. check if the corresponding desktop page needs updating.`);
+            }
+
+            if (dashboardRouters.length > 0) {
+              const list = dashboardRouters.map(f => `- \`${f.filename}\``).join('\n');
+              sections.push(`### tRPC routers changed\n${list}\n\nif new procedures were added or signatures changed, the desktop app may need new tauri commands in \`crates/scemas-desktop/src/commands/\` and sqlx queries in \`crates/scemas-desktop/src/queries/\`.`);
+            }
+
+            if (schemaChanges.length > 0) {
+              sections.push(`### database schema changed\n\n\`packages/db/src/schema.ts\` was modified. update \`crates/scemas-desktop/resources/schema.sql\` to match, and check if new sqlx queries are needed.`);
+            }
+
+            if (cssChanges.length > 0) {
+              sections.push(`### theme CSS changed\n\n\`packages/dashboard/app/globals.css\` was modified. sync the theme tokens in \`packages/desktop/src/app.css\` to keep visual parity.`);
+            }
+
+            if (sections.length === 0) return;
+
+            const body = `## desktop sync reminder\n\nthis PR changes dashboard files that may need porting to the desktop app.\n\n${sections.join('\n\n---\n\n')}`;
+
+            // check if we already commented
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('desktop sync reminder')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

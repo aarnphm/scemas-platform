@@ -3,6 +3,7 @@
 import { platformStatus } from '@scemas/db/schema'
 import { desc } from 'drizzle-orm'
 import { callRustEndpoint } from '../rust-client'
+import { decodeIngestionHealth, decodeLifecycleHealth, fetchRustHealthPayload } from '../health'
 import { router, publicProcedure, adminProcedure } from '../trpc'
 
 export const healthRouter = router({
@@ -28,40 +29,23 @@ export const healthRouter = router({
 
   // ingestion health from rust engine
   ingestion: adminProcedure.query(async () => {
-    try {
-      const { data, status } = await callRustEndpoint('/internal/health', { method: 'GET' })
+    const data = await fetchRustHealthPayload()
 
-      if (status >= 400) {
-        return { status: 'error' as const, message: 'rust engine unreachable' }
-      }
-
-      // /internal/health returns { counters: { ... }, lifecycle: { ... } }
-      const counters = isRecord(data) && isRecord(data.counters) ? data.counters : {}
-      return { status: 'ok' as const, ...counters }
-    } catch {
+    if (!data) {
       return { status: 'error' as const, message: 'rust engine not running' }
     }
+
+    return { status: 'ok' as const, ...decodeIngestionHealth(data) }
   }),
 
   // server lifecycle phase (no auth, used by status indicators)
   lifecycle: publicProcedure.query(async () => {
-    try {
-      const { data, status } = await callRustEndpoint('/internal/health', { method: 'GET' })
-      if (status >= 400 || !isRecord(data)) {
-        return { phase: 'unreachable' as const, drainStage: null, inflight: 0 }
-      }
-      const lifecycle = isRecord(data.lifecycle) ? data.lifecycle : null
-      return {
-        phase: typeof lifecycle?.phase === 'string' ? lifecycle.phase : 'unknown',
-        drainStage: typeof lifecycle?.drainStage === 'string' ? lifecycle.drainStage : null,
-        inflight: typeof lifecycle?.inflight === 'number' ? lifecycle.inflight : 0,
-      }
-    } catch {
+    const data = await fetchRustHealthPayload()
+
+    if (!data) {
       return { phase: 'unreachable' as const, drainStage: null, inflight: 0 }
     }
+
+    return decodeLifecycleHealth(data)
   }),
 })
-
-function isRecord(payload: unknown): payload is Record<string, unknown> {
-  return typeof payload === 'object' && payload !== null
-}

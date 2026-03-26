@@ -7,10 +7,10 @@ smart city environmental monitoring and alert system. SE 3A04 course project dem
 three PAC agents (distinct dashboards) fed by four controllers:
 
 ```
-                    ┌─────────────────────┐
-                    │  DataDistribution   │
-                    │  Manager (tRPC)     │
-                    └─────┬───────────────┘
+                ┌─────────────────────┐
+                │  DataDistribution   │
+                │  Manager (tRPC)     │
+                └─────────┬───────────┘
                           │
           ┌───────────────┼───────────────┐
           ▼               ▼               ▼
@@ -45,13 +45,15 @@ scemas-platform/
 │   ├── scemas-core/             shared entity types from UML class diagram
 │   ├── scemas-telemetry/        pipe-and-filter validation pipeline
 │   ├── scemas-alerting/         blackboard alert evaluation + lifecycle
-│   └── scemas-server/           axum internal API on :3001
+│   ├── scemas-server/           axum internal API on :3001
+│   └── scemas-desktop/          tauri host app and embedded-postgres runtime
 │
 ├── packages/                    bun workspace (typescript)
 │   ├── api/                     cloudflare worker + container wrapper for rust
 │   ├── db/                      drizzle schema (database source of truth)
 │   ├── types/                   zod schemas + shared types
-│   └── dashboard/               next.js 15 + tRPC (3 PAC agent dashboards)
+│   ├── dashboard/               next.js 15 + tRPC (3 PAC agent dashboards)
+│   └── desktop/                 vite/react frontend for the tauri desktop app
 │
 ├── data/                        sample JSON sensor data (hamilton, ON)
 ├── scripts/                     seed script for data ingestion
@@ -87,6 +89,43 @@ bun --filter @scemas/dashboard dev      # next.js on :3000
 ```
 
 first-time setup (`.env` copy, `bun install`) runs automatically on first source and is tracked via a `.derived` sentinel file. delete `.derived` to re-run it.
+
+### desktop app
+
+for local desktop development, use the desktop-specific path instead of `scemas-dev`:
+
+```sh
+nix develop
+scemas dev desktop
+```
+
+without nix, install rust, bun, tauri prerequisites, and postgres 16 first. then run:
+
+```sh
+source scripts/start-scemas.sh
+cargo run -p scemas-cli -- dev desktop
+```
+
+what happens at runtime:
+
+- `scemas dev desktop` starts the tauri app and sets `POSTGRES_BIN_DIR` for the child process when it can discover postgres locally.
+- if `SCEMAS_USE_EMBEDDED_POSTGRES=1` or unset, the desktop app first checks whether `DATABASE_URL` is already reachable. if yes, it reuses that postgres instance. if not, it starts embedded postgres from `POSTGRES_BIN_DIR`, `PATH`, or a well-known postgres 16 install location.
+- if `SCEMAS_USE_EMBEDDED_POSTGRES=0`, the desktop app skips embedded postgres and uses `DATABASE_URL` directly.
+
+examples:
+
+```sh
+# force external postgres
+export SCEMAS_USE_EMBEDDED_POSTGRES=0
+export DATABASE_URL=postgres://scemas:scemas@localhost:5432/scemas
+cargo run -p scemas-cli -- dev desktop
+
+# force a specific postgres 16 install for embedded mode
+export POSTGRES_BIN_DIR="$(brew --prefix postgresql@16)/bin"
+cargo run -p scemas-cli -- dev desktop
+```
+
+for desktop release packaging, `scripts/bundle-postgres.sh` is the step that stages postgres binaries into `crates/scemas-desktop/resources/pg/`. that is a packaging concern, not a general repo bootstrap step. ci already runs it in `.github/workflows/desktop.yml` before the tauri build.
 
 ### default accounts
 
@@ -124,7 +163,14 @@ both paths give you the same functions:
 
 ### environment variables
 
-see `.env.example`. defaults work out of the box for both nix and docker setups.
+see `.env.example`. defaults work out of the box for the web stack. desktop-specific knobs:
+
+| variable | default | meaning |
+|----------|---------|---------|
+| `DATABASE_URL` | `postgres://scemas:scemas@localhost:5432/scemas` | external postgres connection, used by the web stack and by desktop when embedded mode is disabled or when a local postgres is already reachable |
+| `SCEMAS_USE_EMBEDDED_POSTGRES` | `1` | desktop-only switch. `1` tries embedded postgres first, unless an external postgres is already reachable; `0` forces external postgres |
+| `POSTGRES_BIN_DIR` | unset, auto-detected | desktop-only path to a postgres 16 `bin/` directory containing `pg_ctl`, `initdb`, `postgres`, `createdb`, and `psql` |
+| `SCEMAS_REMOTE_URL` | `https://api.scemas.dev` | desktop remote sync/auth endpoint |
 
 ## source of truth
 
@@ -264,4 +310,3 @@ bun run scripts/seed.ts --spike
 ```
 
 severity: 1 = low, 2 = warning, 3 = critical. the webhook fires best-effort (fire-and-forget via `tokio::spawn`). failures are logged server-side but don't block the alert pipeline.
-

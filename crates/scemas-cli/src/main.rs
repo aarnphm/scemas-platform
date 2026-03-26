@@ -53,6 +53,7 @@ const DEV_AFTER_LONG_HELP: &str = "\
 examples:
   scemas dev
   scemas dev --reload
+  scemas dev desktop
   scemas dev seed --rate 4 --spike-ratio 0.1
   scemas dev engine --reload
   scemas dev check";
@@ -121,6 +122,8 @@ enum DevCommands {
     Engine(DevRunArgs),
     /// run only the next.js dashboard dev server
     Dashboard,
+    /// start the desktop app (postgres + vite + tauri dev)
+    Desktop,
     /// continuously emit simulated sensor readings into the ingest pipeline
     Seed(SeedArgs),
     /// run the webhook echo script with passthrough arguments
@@ -537,6 +540,10 @@ async fn handle_dev(args: DevCommandArgs, root: &Path, debug: bool) -> Result<()
                     OsString::from("dev"),
                 ],
             )
+        }
+        DevCommands::Desktop => {
+            ensure_first_time_setup(root)?;
+            dev_desktop(root, debug).await
         }
         DevCommands::Seed(args) => seed::run(root, args).await,
         DevCommands::Webhook(args) => {
@@ -987,6 +994,76 @@ async fn dev_up(root: &Path, debug: bool, args: DevRunArgs) -> Result<(), CliErr
             })
         }
     }
+}
+
+async fn dev_desktop(root: &Path, _debug: bool) -> Result<(), CliError> {
+    require_command("cargo")?;
+
+    // find postgres binaries so embedded postgres works inside tauri
+    let pg_bin_dir = find_pg_bin_dir_for_desktop();
+    tracing::info!(pg_bin = %pg_bin_dir, "postgres binaries for embedded mode");
+    tracing::info!("starting desktop app (embedded postgres + tauri + vite)");
+    tracing::info!("set SCEMAS_USE_EMBEDDED_POSTGRES=0 to use external postgres instead");
+    tracing::info!("ctrl+c to stop");
+
+    let mut tauri = TokioCommand::new("cargo")
+        .current_dir(root)
+        .args([
+            "tauri",
+            "dev",
+            "--manifest-path",
+            "crates/scemas-desktop/Cargo.toml",
+        ])
+        .env("POSTGRES_BIN_DIR", &pg_bin_dir)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .kill_on_drop(true)
+        .spawn()?;
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            tracing::info!("shutting down");
+            terminate_child(&mut tauri).await?;
+            tracing::info!("stopped");
+            Ok(())
+        }
+        status = tauri.wait() => {
+            let status = status?;
+            Err(CliError::ChildExited {
+                process: "tauri",
+                code: exit_code_string(&status),
+            })
+        }
+    }
+}
+
+fn find_pg_bin_dir_for_desktop() -> String {
+    // check POSTGRES_BIN_DIR env (set by flake.nix)
+    if let Ok(dir) = env::var("POSTGRES_BIN_DIR") {
+        if Path::new(&dir).join("pg_ctl").exists() {
+            return dir;
+        }
+    }
+    // search PATH
+    if let Ok(path_var) = env::var("PATH") {
+        for dir in path_var.split(':') {
+            if Path::new(dir).join("pg_ctl").exists() {
+                return dir.to_string();
+            }
+        }
+    }
+    // well-known locations
+    for dir in [
+        "/opt/homebrew/opt/postgresql@16/bin",
+        "/usr/local/opt/postgresql@16/bin",
+        "/usr/lib/postgresql/16/bin",
+    ] {
+        if Path::new(dir).join("pg_ctl").exists() {
+            return dir.to_string();
+        }
+    }
+    panic!("postgres not found. ensure pg_ctl is in PATH (nix develop) or install postgresql@16");
 }
 
 async fn run_engine_command(root: &Path, args: DevRunArgs) -> Result<(), CliError> {

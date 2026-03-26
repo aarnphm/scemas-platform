@@ -11,6 +11,22 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn new(
+        database_url: String,
+        jwt_secret: String,
+        device_auth_secret: String,
+        device_catalog_path: String,
+    ) -> Self {
+        Self {
+            database_url,
+            port: 0, // unused in desktop mode
+            jwt_secret,
+            jwt_expiry_hours: 24,
+            device_auth_secret,
+            device_catalog_path,
+        }
+    }
+
     pub fn from_env() -> Result<Self> {
         dotenvy::dotenv().ok();
 

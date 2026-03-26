@@ -430,7 +430,7 @@ impl AlertingManager {
         let now = Utc::now();
         let mut tx = self.db.begin().await?;
 
-        let transitioned = sqlx::query_scalar::<_, i64>(
+        let transitioned = sqlx::query_scalar::<_, Uuid>(
             "WITH eligible AS (
                 SELECT id FROM alerts
                 WHERE id = ANY($1) AND status = ANY($2)

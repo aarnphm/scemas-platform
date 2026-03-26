@@ -8,12 +8,10 @@ import { redirect } from 'next/navigation'
 import { resolveSessionUser, sessionLandingPath } from '@/lib/session'
 import { getDb } from '@/server/cached'
 import { getJwtSecret } from '@/server/env'
-import { callRustEndpoint } from '@/server/rust-client'
+import { decodeIngestionHealth, fetchRustHealthPayload, type IngestionHealth } from '@/server/health'
 import { IngestionFunnelWrapper, PlatformHealthWrapper } from './health-charts'
 
 export const metadata: Metadata = { title: 'platform health' }
-
-type IngestionHealth = { total_received: number; total_accepted: number; total_rejected: number }
 
 export default async function HealthPage() {
   const db = getDb()
@@ -38,9 +36,9 @@ export default async function HealthPage() {
       <div className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-medium">ingestion counters</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          received <span className="font-mono tabular-nums">{ingestionHealth.total_received}</span>,
-          accepted <span className="font-mono tabular-nums">{ingestionHealth.total_accepted}</span>,
-          rejected <span className="font-mono tabular-nums">{ingestionHealth.total_rejected}</span>
+          received <span className="font-mono tabular-nums">{ingestionHealth.totalReceived}</span>,
+          accepted <span className="font-mono tabular-nums">{ingestionHealth.totalAccepted}</span>,
+          rejected <span className="font-mono tabular-nums">{ingestionHealth.totalRejected}</span>
         </p>
         <div className="mt-4">
           <IngestionFunnelWrapper stats={ingestionHealth} />
@@ -94,38 +92,8 @@ export default async function HealthPage() {
 }
 
 async function fetchIngestionHealth(): Promise<IngestionHealth> {
-  try {
-    const { data, status } = await callRustEndpoint('/internal/health', { method: 'GET' })
-
-    if (status >= 400) {
-      return { total_received: 0, total_accepted: 0, total_rejected: 0 }
-    }
-
-    if (!isRecord(data)) {
-      return { total_received: 0, total_accepted: 0, total_rejected: 0 }
-    }
-
-    return {
-      total_received: getNumericField(data, 'total_received'),
-      total_accepted: getNumericField(data, 'total_accepted'),
-      total_rejected: getNumericField(data, 'total_rejected'),
-    }
-  } catch {
-    return { total_received: 0, total_accepted: 0, total_rejected: 0 }
-  }
-}
-
-function getNumericField(payload: Record<string, unknown>, key: string): number {
-  if (!(key in payload)) {
-    return 0
-  }
-
-  const value = payload[key]
-  return typeof value === 'number' ? value : 0
-}
-
-function isRecord(payload: unknown): payload is Record<string, unknown> {
-  return typeof payload === 'object' && payload !== null
+  const data = await fetchRustHealthPayload()
+  return decodeIngestionHealth(data)
 }
 
 async function resolveIngestionFailureAction(formData: FormData) {

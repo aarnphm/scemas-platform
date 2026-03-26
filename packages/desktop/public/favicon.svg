@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- tetrahedron: 3 visible faces with depth -->
+  <!-- front face -->
+  <path d="M16 4 L6 26 L22 26 Z" fill="#ea9a97" opacity="0.9"/>
+  <!-- right face -->
+  <path d="M16 4 L22 26 L28 16 Z" fill="#a692c3" opacity="0.85"/>
+  <!-- bottom face -->
+  <path d="M6 26 L22 26 L28 16 Z" fill="#a692c3" opacity="0.5"/>
+  <!-- edges -->
+  <path d="M16 4 L6 26 M16 4 L22 26 M16 4 L28 16 M6 26 L22 26 L28 16" stroke="#1a1a1a" stroke-width="0.5" opacity="0.3"/>
+</svg>
