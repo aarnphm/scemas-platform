@@ -37,6 +37,8 @@ three PAC agents (distinct dashboards) fed by four controllers:
 
 **public agent**: aggregated AQI display for digital signage. abstracted (sensitive data stripped). shared view for public users and third-party developers.
 
+We also ship a small CLI for better usability.
+
 ## directory map
 
 ```
@@ -65,7 +67,7 @@ scemas-platform/
 
 ```sh
 nix develop       # rust, bun, postgres, shell helpers, first-time setup
-scemas-dev        # starts db + schema + default accounts + engine + dashboard
+scemas dev        # starts db + schema + default accounts + engine + dashboard
 ```
 
 ### without nix
@@ -97,12 +99,13 @@ first-time setup (`.env` copy, `bun install`) runs automatically on first source
 | `admin@example.com` | admin | `/rules`, `/users`, `/health`, `/audit` |
 | `operator@example.com` | operator | `/dashboard`, `/alerts`, `/subscriptions`, `/metrics` |
 | `viewer@example.com` | viewer | `/display` (public AQI grid) |
+| `public@example.com` | viewer |  |
 
 ### seed sensor data
 
 ```sh
-scemas-seed                 # nix shell
-bun run scripts/seed.ts     # non-nix
+scemas dev seed             # nix shell, or if you build the CLI
+scemas-seed                 # non-nix
 ```
 
 pass `--spike` to generate readings that trigger alerts.
@@ -115,7 +118,6 @@ both paths give you the same functions:
 | function | description |
 |----------|-------------|
 | `scemas-dev` | start everything (db + schema + accounts + engine + dashboard) |
-| `scemas-db` / `scemas-db-stop` | start/stop postgres (auto-detects nix or docker) |
 | `scemas-engine` | rust engine on :3001 |
 | `scemas-dash` | next.js dashboard on :3000 |
 | `scemas-seed` | seed sample data (supports `--spike` and `--rate <n>`) |
@@ -128,42 +130,29 @@ see `.env.example`. defaults work out of the box for both nix and docker setups.
 
 ## architecture tests
 
-unit tests that demonstrate each architectural pattern without a database. run with `cargo test --all`.
+Run the following:
 
-### pipe-and-filter — `crates/scemas-telemetry/src/validate.rs`
+```bash
+cargo test --all
+```
 
-the telemetry pipeline composes three independent filter functions with `and_then`. each filter is a gate: failure stops the pipeline immediately and the reading is dropped.
+### pipe-and-filter
 
-| test | what it demonstrates |
-|------|----------------------|
-| `pipeline_passes_a_fully_valid_reading` | happy path — all three filters accept a valid reading in sequence |
-| `pipeline_stops_at_schema_before_range_is_checked` | first failing gate wins; downstream filters never run |
-| `pipeline_stops_at_range_when_schema_passes` | filters are independent — schema passing does not excuse a range violation |
-| `pipeline_stops_at_timestamp_when_schema_and_range_pass` | every filter is a distinct gate regardless of position |
-| `range_filter_covers_all_four_metric_types` | the pipeline handles every metric type (`temperature`, `humidity`, `air_quality`, `noise_level`) |
+_location_: `crates/scemas-telemetry/src/validate.rs`
 
-### blackboard — `crates/scemas-alerting/src/blackboard.rs`
+chains `schema_validator`, `range_validator`, `timestamp_validator` via `and_then`. failure at any stage drops the reading. tests cover the happy path, each gate rejecting independently, and all four metric types.
 
-the blackboard is shared mutable state. knowledge sources (`evaluator`, `lifecycle`, `dispatcher`) read and write it without calling each other directly. the tests are cross-module — they import from both `evaluator` and `lifecycle` to show real coordination through the blackboard.
+### blackboard
 
-| test | what it demonstrates |
-|------|----------------------|
-| `rules_loaded_into_blackboard_are_visible_to_evaluator` | the evaluator reads rules from the blackboard, not from a direct call |
-| `alerts_posted_by_evaluator_are_readable_by_other_knowledge_sources` | writes from one knowledge source are immediately visible to all others |
-| `full_workflow_evaluate_post_then_lifecycle_transition` | end-to-end: load rule → evaluate reading → post alert → lifecycle reads alert |
-| `removing_a_rule_prevents_future_alerts` | blackboard mutations are immediately visible; removed rules no longer fire |
-| `replace_rules_atomically_swaps_the_full_rule_set` | rule reload (used on startup and admin changes) replaces all entries atomically |
-| `empty_blackboard_produces_no_alerts` | the blackboard is the authoritative source of rules; no rules, no alerts |
+_location_: `crates/scemas-alerting/src/blackboard.rs`
 
-### pac (presentation-abstraction-control) — `crates/scemas-core/src/models.rs`
+knowledge sources (`evaluator`, `lifecycle`, `dispatcher`) coordinate through shared mutable state on the `Blackboard`. tests import from both `evaluator` and `lifecycle` to exercise cross-module reads/writes, rule replacement, and the full evaluate-post-lifecycle transition.
 
-the `Role` enum is the abstraction layer between the control layer (`AccessManager` / JWT validation) and the three presentation agents. route enforcement itself lives on the frontend in `packages/dashboard/middleware.ts` and the `(operator)/`, `(admin)/`, `(public)/` Next.js route groups.
+### pac
 
-| test | what it demonstrates |
-|------|----------------------|
-| `role_round_trips_through_string_representation` | JWT claims and DB values serialize and deserialize consistently for all three roles |
-| `unrecognized_role_string_is_rejected_by_abstraction_layer` | the abstraction layer rejects unknown roles so the control layer never routes to an undefined agent |
-| `three_pac_agent_roles_are_distinct` | each role maps to a separate agent — no two roles are equal, which would collapse two agents into one |
+_location_: `crates/scemas-core/src/models.rs`
+
+the `Role` enum sits between the control layer (`AccessManager` / JWT) and the three presentation agents. route enforcement lives in `packages/dashboard/middleware.ts` and the `(operator)/`, `(admin)/`, `(public)/` route groups. tests verify role round-tripping through strings, rejection of unknown roles, and distinctness of all three agents.
 
 ## source of truth
 
@@ -303,4 +292,3 @@ bun run scripts/seed.ts --spike
 ```
 
 severity: 1 = low, 2 = warning, 3 = critical. the webhook fires best-effort (fire-and-forget via `tokio::spawn`). failures are logged server-side but don't block the alert pipeline.
-
