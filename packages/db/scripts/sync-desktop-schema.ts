@@ -11,7 +11,8 @@
 import postgres from 'postgres'
 
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://localhost:5432/scemas'
-const OUTPUT = new URL('../../../crates/scemas-desktop/resources/schema.sql', import.meta.url).pathname
+const OUTPUT = new URL('../../../crates/scemas-desktop/resources/schema.sql', import.meta.url)
+  .pathname
 
 const sql = postgres(DATABASE_URL)
 
@@ -98,7 +99,9 @@ lines.push(`CREATE TABLE IF NOT EXISTS sync_queue (
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );`)
-lines.push('CREATE INDEX IF NOT EXISTS sync_queue_status_created_at_idx ON sync_queue (status, created_at);')
+lines.push(
+  'CREATE INDEX IF NOT EXISTS sync_queue_status_created_at_idx ON sync_queue (status, created_at);',
+)
 lines.push('')
 
 await Bun.write(OUTPUT, lines.join('\n'))

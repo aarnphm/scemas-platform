@@ -3,6 +3,12 @@ import { RouterProvider } from '@tanstack/react-router'
 import { createAppRouter } from './router'
 import { useAuthStore } from './store/auth'
 
+declare global {
+  interface Window {
+    __traySignOut?: () => void
+  }
+}
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, gcTime: 5 * 60_000, retry: 1 } },
 })
@@ -10,7 +16,7 @@ const queryClient = new QueryClient({
 const router = createAppRouter(queryClient)
 
 // expose sign-out for tray menu (called via window.eval from rust)
-;(window as Record<string, unknown>).__traySignOut = () => {
+window.__traySignOut = () => {
   useAuthStore.getState().clearSession()
   window.history.pushState({}, '', '/sign-in')
   window.dispatchEvent(new PopStateEvent('popstate'))

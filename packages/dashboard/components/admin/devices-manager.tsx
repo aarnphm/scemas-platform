@@ -4,7 +4,6 @@
 
 import { useState } from 'react'
 import { ListPagination } from '@/components/list-pagination'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { usePageSize } from '@/lib/settings'
 import { trpc } from '@/lib/trpc'
 import { cn } from '@/lib/utils'

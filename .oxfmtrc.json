@@ -23,6 +23,7 @@
   "experimentalSortPackageJson": true,
   "ignorePatterns": [
     "worker-configuration.d.ts",
-    "packages/dashboard/components/ui"
+    "packages/dashboard/components/ui",
+    "packages/db/migrations"
   ]
 }

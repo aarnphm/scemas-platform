@@ -20,7 +20,11 @@ const chartConfig = {
 export function PlatformHealthChart({ data, hours }: { data: HealthPoint[]; hours?: number }) {
   const fmt = useMemo(() => makeChartTimeFormatter(hours ?? 24), [hours])
   if (data.length === 0) {
-    return <p className="text-sm text-muted-foreground text-pretty">no platform status has been recorded yet</p>
+    return (
+      <p className="text-sm text-muted-foreground text-pretty">
+        no platform status has been recorded yet
+      </p>
+    )
   }
 
   return (

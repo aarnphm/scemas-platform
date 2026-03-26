@@ -5,7 +5,10 @@ const METRIC_TYPES = ['temperature', 'humidity', 'air_quality', 'noise_level']
 
 export function SubscriptionsPage() {
   const readings = useTauriQuery<{ zone: string }[]>('telemetry_get_latest', { limit: 50 })
-  const zones = useMemo(() => Array.from(new Set((readings.data ?? []).map(r => r.zone))).sort(), [readings.data])
+  const zones = useMemo(
+    () => Array.from(new Set((readings.data ?? []).map(r => r.zone))).sort(),
+    [readings.data],
+  )
 
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(METRIC_TYPES)
   const [selectedZones, setSelectedZones] = useState<string[]>([])
@@ -57,7 +60,9 @@ export function SubscriptionsPage() {
                 {z.replaceAll('_', ' ')}
               </label>
             ))}
-            {readings.isLoading && <p className="text-xs text-muted-foreground">loading zones...</p>}
+            {readings.isLoading && (
+              <p className="text-xs text-muted-foreground">loading zones...</p>
+            )}
           </div>
         </div>
       </div>

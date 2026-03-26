@@ -29,7 +29,11 @@ export function AlertFrequencyChart({
 }) {
   const fmt = useMemo(() => makeChartTimeFormatter(hours ?? 24), [hours])
   if (data.length === 0) {
-    return <p className="text-sm text-muted-foreground text-pretty">no alerts recorded in this time window</p>
+    return (
+      <p className="text-sm text-muted-foreground text-pretty">
+        no alerts recorded in this time window
+      </p>
+    )
   }
 
   return (

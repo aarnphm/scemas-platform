@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   AreaChart,
   Area,
@@ -7,7 +8,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { useMemo } from 'react'
 import { makeChartTimeFormatter } from '@/lib/chart-utils'
 import { useHealth, useTauriQuery } from '@/lib/tauri'
 

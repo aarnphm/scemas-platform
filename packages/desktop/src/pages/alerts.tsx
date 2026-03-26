@@ -33,7 +33,6 @@ const SEVERITY: Record<number, { label: string; cls: string }> = {
   3: { label: 'critical', cls: 'bg-red-500/15 text-red-700' },
 }
 
-
 type SortMode = 'latest' | 'severity' | 'oldest'
 
 function sortAlerts(items: Alert[], mode: SortMode): Alert[] {
@@ -220,9 +219,7 @@ export function AlertsPage() {
               <option value="severity">severity</option>
               <option value="oldest">oldest first</option>
             </select>
-            {!live && (
-              <PeriodSelector periods={CHART_PERIODS} value={hours} onChange={setHours} />
-            )}
+            {!live && <PeriodSelector periods={CHART_PERIODS} value={hours} onChange={setHours} />}
             <button
               onClick={() => setLive(v => !v)}
               className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium transition-colors ${

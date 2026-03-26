@@ -320,9 +320,7 @@ function ActiveSessionsPanel() {
           ))}
         </div>
       ) : sessionsQuery.isError ? (
-        <div className="px-4 py-4 text-sm text-destructive">
-          {sessionsQuery.error.message}
-        </div>
+        <div className="px-4 py-4 text-sm text-destructive">{sessionsQuery.error.message}</div>
       ) : sessions.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted-foreground text-pretty">
           no active sessions

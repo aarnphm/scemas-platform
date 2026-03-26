@@ -8,12 +8,41 @@ use tauri::{
 
 pub struct AuthInfo {
     pub email: String,
-    pub status: String,
+    pub status: PlatformStatus,
+}
+
+#[derive(Default)]
+pub enum PlatformStatus {
+    #[default]
+    Operational,
+    Degraded,
+    Down,
+}
+
+impl PlatformStatus {
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "degraded" => Self::Degraded,
+            "down" => Self::Down,
+            _ => Self::Operational,
+        }
+    }
+
+    fn label(&self) -> &'static str {
+        match self {
+            Self::Operational => "status: operational \u{25CF}",
+            Self::Degraded => "status: degraded \u{25D0}",
+            Self::Down => "status: down \u{25CB}",
+        }
+    }
 }
 
 pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> Result<TrayIcon<R>, tauri::Error> {
     let menu = build_menu(app, None)?;
-    let icon = app.default_window_icon().cloned().unwrap_or_else(|| severity_icon(None));
+    let icon = app
+        .default_window_icon()
+        .cloned()
+        .unwrap_or_else(|| severity_icon(None));
 
     let tray = TrayIconBuilder::with_id("scemas-tray")
         .icon(icon)
@@ -33,9 +62,7 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> Result<TrayIcon<R>, tauri:
             }
             "sign-out" => {
                 if let Some(window) = find_main_window(app) {
-                    let _ = window.eval(
-                        "window.__traySignOut && window.__traySignOut()"
-                    );
+                    let _ = window.eval("window.__traySignOut && window.__traySignOut()");
                 }
             }
             "quit" => app.exit(0),
@@ -56,16 +83,17 @@ fn build_menu<R: Runtime>(
 
     if let Some(info) = session {
         let email = MenuItem::with_id(app, "email", &info.email, false, None::<&str>)?;
-        let status = MenuItem::with_id(
-            app, "status", format!("status: {}", info.status), false, None::<&str>,
-        )?;
+        let status = MenuItem::with_id(app, "status", info.status.label(), false, None::<&str>)?;
         let sep2 = PredefinedMenuItem::separator(app)?;
         let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
         let sign_out = MenuItem::with_id(app, "sign-out", "Sign Out", true, None::<&str>)?;
 
-        Menu::with_items(app, &[
-            &show, &sep1, &email, &status, &sep2, &settings, &sign_out, &quit,
-        ])
+        Menu::with_items(
+            app,
+            &[
+                &show, &sep1, &email, &status, &sep2, &settings, &sign_out, &quit,
+            ],
+        )
     } else {
         let sign_in = MenuItem::with_id(app, "sign-in", "Sign In", true, None::<&str>)?;
         Menu::with_items(app, &[&show, &sep1, &sign_in, &quit])

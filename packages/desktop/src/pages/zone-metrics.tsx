@@ -52,7 +52,6 @@ const METRIC_COLORS: Record<string, string> = {
   noiseLevel: '#a0430a',
 }
 
-
 export function ZoneMetricsPage() {
   const { zone } = useParams({ strict: false })
   const [hours, setHours] = useState(168)

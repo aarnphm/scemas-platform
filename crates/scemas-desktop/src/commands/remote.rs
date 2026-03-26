@@ -11,12 +11,20 @@ use crate::tray;
 type Result<T> = std::result::Result<T, DesktopError>;
 
 #[tauri::command]
-pub fn tray_set_auth(app: AppHandle, logged_in: bool, email: Option<String>) {
+pub fn tray_set_auth(
+    app: AppHandle,
+    logged_in: bool,
+    email: Option<String>,
+    status: Option<String>,
+) {
     if logged_in {
-        tray::update_auth_menu(&app, Some(tray::AuthInfo {
-            email: email.unwrap_or_default(),
-            status: "operational".into(),
-        }));
+        tray::update_auth_menu(
+            &app,
+            Some(tray::AuthInfo {
+                email: email.unwrap_or_default(),
+                status: tray::PlatformStatus::from_str(status.as_deref().unwrap_or("operational")),
+            }),
+        );
     } else {
         tray::update_auth_menu(&app, None);
     }

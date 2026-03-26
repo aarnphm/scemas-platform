@@ -18,8 +18,17 @@ export function PublicLayout() {
         className="flex h-8 shrink-0 items-center justify-end gap-4 border-b px-4 text-xs"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
-        <span className="text-muted-foreground" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>{user?.email}</span>
-        <button onClick={handleSignOut} className="text-muted-foreground hover:text-foreground" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <span
+          className="text-muted-foreground"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
+          {user?.email}
+        </span>
+        <button
+          onClick={handleSignOut}
+          className="text-muted-foreground hover:text-foreground"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
           sign out
         </button>
       </div>
