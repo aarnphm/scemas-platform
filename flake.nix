@@ -175,7 +175,7 @@
           if [ -n "''${BASH_VERSION:-}" ] && [ -f "${scemas}/share/bash-completion/completions/scemas" ]; then
             source "${scemas}/share/bash-completion/completions/scemas"
           fi
-          echo "[scemas] ready. try: scemas --help, scemas dev up, scemas dev desktop"
+          echo "[scemas] ready. try: scemas --help, scemas dev, scemas dev desktop"
         '';
       };
     });

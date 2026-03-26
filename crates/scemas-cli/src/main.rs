@@ -1014,13 +1014,8 @@ async fn dev_desktop(root: &Path, debug: bool) -> Result<(), CliError> {
     tracing::info!("ctrl+c to stop");
 
     let mut tauri = TokioCommand::new("cargo")
-        .current_dir(root)
-        .args([
-            "tauri",
-            "dev",
-            "--manifest-path",
-            "crates/scemas-desktop/Cargo.toml",
-        ])
+        .current_dir(root.join("crates/scemas-desktop"))
+        .args(["tauri", "dev"])
         .env("POSTGRES_BIN_DIR", &pg_bin_dir)
         .env("DATABASE_URL", &db_url)
         .env("SCEMAS_REMOTE_DB_URL", &db_url)

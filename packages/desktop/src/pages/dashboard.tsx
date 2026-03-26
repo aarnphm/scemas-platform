@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { useState, useMemo } from 'react'
+import { lazy, Suspense, useState, useMemo } from 'react'
 import {
   LineChart,
   Line,
@@ -12,8 +12,9 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
+import type { SensorPin } from '@/components/zone-map'
 import { PeriodSelector } from '@/components/period-selector'
-import { ZoneMap, type SensorPin } from '@/components/zone-map'
+const ZoneMap = lazy(() => import('@/components/zone-map').then(m => ({ default: m.ZoneMap })))
 import { CHART_PERIODS, makeChartTimeFormatter } from '@/lib/chart-utils'
 import { useTauriQuery } from '@/lib/tauri'
 import { useAuthStore } from '@/store/auth'
@@ -290,7 +291,15 @@ export function DashboardPage() {
 
       <div className="space-y-2">
         <h2 className="text-sm font-medium">sensor map by monitoring region</h2>
-        <ZoneMap sensors={sensorPins} alertCounts={alertCounts} />
+        <Suspense
+          fallback={
+            <div className="flex h-80 items-center justify-center rounded-lg border text-sm text-muted-foreground">
+              loading map...
+            </div>
+          }
+        >
+          <ZoneMap sensors={sensorPins} alertCounts={alertCounts} />
+        </Suspense>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

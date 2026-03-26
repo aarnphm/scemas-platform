@@ -47,7 +47,7 @@ impl SyncService {
     pub async fn run(&mut self) {
         // connect to remote DB if configured
         if let Some(url) = self.remote_db_url.as_deref().filter(|u| !u.is_empty()) {
-            match PgPool::connect(&url).await {
+            match PgPool::connect(url).await {
                 Ok(pool) => {
                     tracing::info!("sync: connected to remote database");
                     self.remote = Some(pool);

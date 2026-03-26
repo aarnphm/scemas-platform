@@ -7,5 +7,17 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   server: { port: 5173, strictPort: true },
-  build: { outDir: 'dist', emptyOutDir: true },
+  build: {
+    chunkSizeWarningLimit: 1100,
+    outDir: 'dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('maplibre-gl') || id.includes('react-map-gl')) return 'maplibre'
+          if (id.includes('recharts') || id.includes('d3-')) return 'charts'
+        },
+      },
+    },
+  },
 })

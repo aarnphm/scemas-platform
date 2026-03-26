@@ -20,6 +20,9 @@ use scemas_server::ScemasRuntime;
 use tauri::Manager;
 use tokio::sync::{Mutex, watch};
 
+const DEFAULT_DEV_INTERNAL_RUST_URL: &str = "http://localhost:3001";
+const DEFAULT_PROD_INTERNAL_RUST_URL: &str = "https://scemas-api.aarnphm.workers.dev";
+
 fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -72,16 +75,14 @@ fn main() {
 
             let secrets = load_or_generate_secrets(&data_dir);
 
-            let remote_url = std::env::var("INTERNAL_RUST_URL")
-                .or_else(|_| std::env::var("SCEMAS_REMOTE_URL"))
-                .unwrap_or_else(|_| "http://localhost:3001".to_string());
+            let remote_url = default_remote_url();
             let remote_auth = Arc::new(RemoteAuth::new(remote_url));
             app.manage(Arc::clone(&remote_auth));
 
             let (shutdown_tx, shutdown_rx) = watch::channel(false);
             app.manage(ShutdownSignal(shutdown_tx));
 
-            let remote_db_url = std::env::var("SCEMAS_REMOTE_DB_URL").ok();
+            let remote_db_url = default_remote_db_url();
 
             tauri::async_runtime::block_on(async move {
                 // postgres mode: DATABASE_URL takes priority (dev, docker-compose, nix).
@@ -333,6 +334,38 @@ fn find_available_port() -> u16 {
         .local_addr()
         .expect("local addr")
         .port()
+}
+
+fn default_remote_url() -> String {
+    runtime_env("INTERNAL_RUST_URL")
+        .or_else(|| runtime_env("SCEMAS_REMOTE_URL"))
+        .or_else(|| compile_time_env(option_env!("INTERNAL_RUST_URL")))
+        .or_else(|| compile_time_env(option_env!("SCEMAS_REMOTE_URL")))
+        .unwrap_or_else(|| {
+            if cfg!(debug_assertions) {
+                DEFAULT_DEV_INTERNAL_RUST_URL.to_string()
+            } else {
+                DEFAULT_PROD_INTERNAL_RUST_URL.to_string()
+            }
+        })
+}
+
+fn default_remote_db_url() -> Option<String> {
+    runtime_env("SCEMAS_REMOTE_DB_URL")
+}
+
+fn runtime_env(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn compile_time_env(value: Option<&'static str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
 }
 
 /// find postgres bin directory. checks: bundled resource, POSTGRES_BIN_DIR env, PATH, well-known locations.

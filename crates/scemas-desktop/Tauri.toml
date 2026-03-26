@@ -40,7 +40,6 @@ resources = [
 
 [bundle.macOS]
 minimumSystemVersion = "10.15"
-signingIdentity = "-"
 
 [bundle.windows.webviewInstallMode]
 type = "downloadBootstrapper"

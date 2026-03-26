@@ -109,10 +109,10 @@ fn build_menu<R: Runtime>(
 }
 
 pub fn update_auth_menu<R: Runtime>(app: &AppHandle<R>, session: Option<AuthInfo>) {
-    if let Some(tray) = app.tray_by_id("scemas-tray") {
-        if let Ok(menu) = build_menu(app, session.as_ref()) {
-            let _ = tray.set_menu(Some(menu));
-        }
+    if let Some(tray) = app.tray_by_id("scemas-tray")
+        && let Ok(menu) = build_menu(app, session.as_ref())
+    {
+        let _ = tray.set_menu(Some(menu));
     }
 }
 
@@ -130,7 +130,7 @@ fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
 
 fn navigate<R: Runtime>(app: &AppHandle<R>, route: &str) {
     if let Some(window) = find_main_window(app) {
-        let _ = window.eval(&format!(
+        let _ = window.eval(format!(
             "window.history.pushState({{}}, '', '{route}'); \
              window.dispatchEvent(new PopStateEvent('popstate'))"
         ));
