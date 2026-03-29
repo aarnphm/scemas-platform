@@ -149,7 +149,7 @@ the desktop app runs the same `ScemasRuntime` as the server. the difference: it 
 
 ### scemas-cli
 
-local development orchestrator. the `scemas` binary.
+the `scemas` binary for interacting with scemas services, via SCEMAS_API_TOKEN
 
 | command                                           | what it does                                                   |
 | ------------------------------------------------- | -------------------------------------------------------------- |
