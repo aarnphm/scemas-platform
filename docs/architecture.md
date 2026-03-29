@@ -231,9 +231,9 @@ erDiagram
 
     alertSubscriptions {
         uuid id PK
-        uuid userId FK UK
-        text_arr metricTypes
-        text_arr zones
+        uuid userId UK "FK to accounts"
+        text metricTypes "text array"
+        text zones "text array"
         int minSeverity
         text webhookUrl
     }
