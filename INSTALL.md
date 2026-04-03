@@ -23,7 +23,7 @@ You have received the project as a `.zip` file. Extract it and navigate into the
 
 ```sh
 unzip scemas-platform.zip
-cd scemas-platform
+cd scemas-platform-main
 ```
 
 ---
@@ -48,7 +48,7 @@ On first run, the script automatically creates the `.env` settings file and inst
 The dashboard will appear empty until the database is populated. Open a **new terminal tab**, navigate to the project folder, and run:
 
 ```sh
-cd scemas-platform
+source scripts/start-scemas.sh
 scemas-seed
 ```
 
