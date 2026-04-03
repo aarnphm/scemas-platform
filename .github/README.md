@@ -203,6 +203,7 @@ these are server-to-server routes used by the next/tRPC layer and seed scripts, 
 | ------------------------------------------------------------ | ------------------------------------------- |
 | `docs/D1.pdf`                                                | requirements and system framing             |
 | `docs/D2.pdf`                                                | design/package deliverable                  |
+| `docs/D3.pdf`                                                | Detailed Design Document                    |
 | `docs/diagrams/class_diagram.puml`                           | UML class source of truth                   |
 | `docs/diagrams/signup_and_login.puml`                        | signup/login interaction flow               |
 | `docs/diagrams/define_alert_rule.puml`                       | admin rule creation sequence                |
