@@ -19,11 +19,11 @@ macOS or Linux are the recommended platforms. On Windows, please use WSL (Window
 
 ## Step 1: Extract the Source Code *(required)*
 
-You have received the project as a `.zip` file. Extract it and navigate into the project folder:
+You have received the project as a `Tutorial2_Group5_D4` file. Extract it and navigate into the project folder:
 
 ```sh
-unzip scemas-platform.zip
-cd scemas-platform
+unzip Tutorial2_Group5_D4.zip
+cd ./Tutorial2_Group5_D4/scemas-platform-main
 ```
 
 ---
@@ -45,10 +45,9 @@ On first run, the script automatically creates the `.env` settings file and inst
 
 ## Step 3: Seed Sample Data *(required)*
 
-The dashboard will appear empty until the database is populated. Open a **new terminal tab**, navigate to the project folder, and run:
+The dashboard will appear empty until the database is populated. Open a **new terminal tab**, navigate to the project folder, `scemas-platform-main`, and run:
 
 ```sh
-cd scemas-platform
 scemas-seed
 ```
 
