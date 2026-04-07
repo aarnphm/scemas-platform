@@ -7,6 +7,7 @@ import { alerts, hazardReports } from '@scemas/db/schema'
 
 export const metadata: Metadata = { title: 'operator dashboard' }
 import { count, desc, eq } from 'drizzle-orm'
+import Link from 'next/link'
 import { Suspense } from 'react'
 import { ZoneMap, type SensorPin } from '@/components/map/zone-map'
 import { Spinner } from '@/components/ui/spinner'
@@ -145,7 +146,9 @@ async function SensorCoveragePanel() {
   return (
     <div className="rounded-lg border border-border bg-card">
       <div className="px-4 pt-4 pb-2">
-        <h2 className="text-sm font-medium">live sensor feed</h2>
+        <Link className="text-sm font-medium underline-offset-4 hover:underline" href="/metrics">
+          live sensor feed
+        </Link>
         <p className="mt-1 text-xs text-muted-foreground">
           <span className="font-mono tabular-nums">{latestReadings.length}</span> streams across{' '}
           <span className="font-mono tabular-nums">{coveredRegions}</span> regions
@@ -202,7 +205,9 @@ async function ActiveAlertsPanel() {
   return (
     <div className="flex h-full flex-col rounded-lg border border-border bg-card">
       <div className="px-4 pt-4 pb-2">
-        <h2 className="text-sm font-medium">active alerts</h2>
+        <Link className="text-sm font-medium underline-offset-4 hover:underline" href="/alerts">
+          active alerts
+        </Link>
         <p className="mt-1 text-xs text-muted-foreground">
           <span className="font-mono tabular-nums">{activeAlerts.length}</span> unresolved
         </p>

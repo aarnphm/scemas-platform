@@ -227,6 +227,7 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <span className="text-sm font-medium">alert queue</span>
         <div className="flex items-center gap-2">
+          {live || isRefetching ? <Spinner /> : null}
           <NativeSelect value={zoneFilter} onChange={e => setZoneFilter(e.target.value)}>
             <NativeSelectOption value="all">all zones</NativeSelectOption>
             {availableZones.map(zone => (
@@ -347,14 +348,6 @@ export function AlertsManager({ availableZones }: { availableZones: string[] }) 
           </div>
         ) : (
           <>
-            {isRefetching && (
-              <div className="absolute inset-x-0 top-0 z-10 flex justify-center py-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 text-xs text-muted-foreground shadow-sm">
-                  <Spinner />
-                  updating
-                </span>
-              </div>
-            )}
             <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
               {virtualItems.map(virtualRow => {
                 const alert = filtered[virtualRow.index]

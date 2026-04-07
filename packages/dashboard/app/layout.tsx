@@ -34,7 +34,10 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_URL ?? 'http://localhost:3000'),
-  title: { default: 'SCEMAS', template: '%s | SCEMAS' },
+  title: {
+    default: process.env.NODE_ENV === 'development' ? 'SCEMAS [DEV]' : 'SCEMAS',
+    template: process.env.NODE_ENV === 'development' ? '%s | SCEMAS [DEV]' : '%s | SCEMAS',
+  },
   description: 'smart city environmental monitoring and alert system for Hamilton, ON',
   openGraph: { type: 'website', siteName: 'SCEMAS', locale: 'en_CA' },
   twitter: { card: 'summary_large_image' },

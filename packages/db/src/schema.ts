@@ -47,7 +47,7 @@ export const activeSessionTokens = pgTable(
   {
     tokenValue: text('token_value').primaryKey(),
     userId: uuid('user_id')
-      .references(() => accounts.id)
+      .references(() => accounts.id, { onDelete: 'cascade' })
       .notNull(),
     role: text('role').notNull(),
     expiry: timestamp('expiry', { withTimezone: true }).notNull(),
@@ -87,7 +87,7 @@ export const thresholdRules = pgTable(
     comparison: text('comparison').notNull(),
     zone: text('zone'),
     ruleStatus: text('rule_status').notNull().default('active'),
-    createdBy: uuid('created_by').references(() => accounts.id),
+    createdBy: uuid('created_by').references(() => accounts.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   table => ({
@@ -110,7 +110,7 @@ export const alerts = pgTable(
     triggeredValue: doublePrecision('triggered_value').notNull(),
     zone: text('zone').notNull(),
     metricType: text('metric_type').notNull(),
-    acknowledgedBy: uuid('acknowledged_by').references(() => accounts.id),
+    acknowledgedBy: uuid('acknowledged_by').references(() => accounts.id, { onDelete: 'set null' }),
     acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -129,7 +129,7 @@ export const auditLogs = pgTable(
   'audit_logs',
   {
     id: bigserial('id', { mode: 'number' }).primaryKey(),
-    userId: uuid('user_id').references(() => accounts.id),
+    userId: uuid('user_id').references(() => accounts.id, { onDelete: 'set null' }),
     action: text('action').notNull(),
     details: jsonb('details'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -142,7 +142,7 @@ export const auditLogs = pgTable(
 export const alertSubscriptions = pgTable('alert_subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id')
-    .references(() => accounts.id)
+    .references(() => accounts.id, { onDelete: 'cascade' })
     .notNull()
     .unique(),
   metricTypes: text('metric_types').array(),
@@ -249,8 +249,8 @@ export const hazardReports = pgTable(
     description: text('description').notNull(),
     status: text('status').notNull().default('pending'),
     contactEmail: text('contact_email'),
-    reportedBy: uuid('reported_by').references(() => accounts.id),
-    reviewedBy: uuid('reviewed_by').references(() => accounts.id),
+    reportedBy: uuid('reported_by').references(() => accounts.id, { onDelete: 'set null' }),
+    reviewedBy: uuid('reviewed_by').references(() => accounts.id, { onDelete: 'set null' }),
     reviewNote: text('review_note'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
