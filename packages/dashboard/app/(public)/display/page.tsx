@@ -15,7 +15,9 @@ export default function PublicDisplayPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-lg font-normal text-balance">public air quality display</h1>
+          <h1 className="text-lg font-normal text-balance">
+            public environmental monitoring display
+          </h1>
           <p className="text-sm text-muted-foreground/70 text-pretty">
             live monitoring-region conditions grouped from hamilton&apos;s official planning-unit
             layer. the public api route stays <code>/api/v1/zones/aqi</code> for compatibility.

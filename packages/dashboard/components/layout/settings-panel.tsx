@@ -118,7 +118,7 @@ function PublicDisplaySection() {
       <div>
         <h3 className="text-xs font-medium text-muted-foreground">public display</h3>
         <p className="mt-0.5 text-[11px] text-muted-foreground/50 text-pretty">
-          controls the public air quality display for all visitors.
+          controls the public environmental monitoring display for all visitors.
         </p>
       </div>
       <div className="flex items-center gap-4">

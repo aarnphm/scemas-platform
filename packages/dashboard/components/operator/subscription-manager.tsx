@@ -147,7 +147,8 @@ export function SubscriptionManager({ availableZones, onSaved }: SubscriptionMan
           type="url"
         />
         <p className="text-xs text-muted-foreground">
-          receives a JSON POST when a matching alert fires. leave empty to disable.
+          receives a JSON POST when a matching alert fires. must be publicly reachable in production
+          (localhost URLs only work in local dev). leave empty to disable.
         </p>
       </div>
 

@@ -87,12 +87,19 @@ function ZoneList({
           const value = (
             <div className="shrink-0 text-right">
               <p className="font-mono tabular-nums">
+                <span className="invisible text-xs text-muted-foreground group-hover/zone:visible">
+                  avg{' '}
+                </span>
                 {zone.averageValue} {unit}
               </p>
-              <p className="text-xs text-muted-foreground">latest {zone.latestValue}</p>
+              <p className="text-xs text-muted-foreground">
+                <span className="invisible group-hover/zone:visible">latest </span>
+                <span className="group-hover/zone:invisible">↳ </span>
+                {zone.latestValue}
+              </p>
             </div>
           )
-          const cls = `flex items-center justify-between px-3 text-sm transition-colors hover:bg-muted/50 ${ZONE_ROW_HEIGHT} ${i < pageZones.length - 1 ? 'border-b border-border/40' : ''}`
+          const cls = `group/zone flex items-center justify-between px-3 text-sm transition-colors hover:bg-muted/50 ${ZONE_ROW_HEIGHT} ${i < pageZones.length - 1 ? 'border-b border-border/40' : ''}`
 
           return showZoneLinks ? (
             <Link className={cls} href={`/metrics/${zone.zone}`} key={`${metricType}-${zone.zone}`}>

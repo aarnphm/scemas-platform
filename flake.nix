@@ -153,6 +153,7 @@
             openssl
             python3
             scemas
+            cloudflared
             # tauri cli + desktop deps
             cargo-tauri
           ]

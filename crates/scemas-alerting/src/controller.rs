@@ -516,6 +516,15 @@ impl AlertingManager {
                 .ok();
 
                 if let Some(url) = &sub.webhook_url {
+                    if is_loopback_url(url) {
+                        tracing::warn!(
+                            webhook_url = %url,
+                            user_id = %sub.user_id,
+                            "skipping webhook to loopback address (unreachable in production, use a public URL or tunnel)"
+                        );
+                        continue;
+                    }
+
                     let payload = serde_json::json!({
                         "type": "alert.triggered",
                         "alert": {
@@ -531,8 +540,20 @@ impl AlertingManager {
                     let client = self.http_client.clone();
                     let url = url.clone();
                     tokio::spawn(async move {
-                        if let Err(e) = client.post(&url).json(&payload).send().await {
-                            tracing::warn!(webhook_url = %url, error = %e, "webhook dispatch failed");
+                        match client.post(&url).json(&payload).send().await {
+                            Ok(response) if !response.status().is_success() => {
+                                tracing::warn!(
+                                    webhook_url = %url,
+                                    status = %response.status(),
+                                    "webhook endpoint returned error"
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!(webhook_url = %url, error = %e, "webhook dispatch failed");
+                            }
+                            _ => {
+                                tracing::debug!(webhook_url = %url, "webhook delivered");
+                            }
                         }
                     });
                 }
@@ -696,4 +717,11 @@ fn parse_alert_status(value: &str) -> Result<AlertStatus> {
         "resolved" => Ok(AlertStatus::Resolved),
         other => Err(Error::Internal(format!("unknown alert status: {other}"))),
     }
+}
+
+fn is_loopback_url(url: &str) -> bool {
+    let Ok(parsed) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    matches!(parsed.host_str(), Some("localhost" | "127.0.0.1" | "::1"))
 }
