@@ -12,10 +12,10 @@ export type MetricPanelData = {
 }
 
 const metricConfig: Record<MetricType, { title: string; unit: string }> = {
-  temperature: { title: 'temperature subagent', unit: 'c' },
-  humidity: { title: 'humidity subagent', unit: '%' },
-  air_quality: { title: 'air quality subagent', unit: 'ug/m3' },
-  noise_level: { title: 'noise subagent', unit: 'db' },
+  temperature: { title: 'temperature', unit: 'c' },
+  humidity: { title: 'humidity', unit: '%' },
+  air_quality: { title: 'air quality', unit: 'ug/m3' },
+  noise_level: { title: 'noise', unit: 'db' },
 }
 
 const metricOrder: MetricType[] = ['temperature', 'humidity', 'air_quality', 'noise_level']

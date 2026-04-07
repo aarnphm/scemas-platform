@@ -18,7 +18,6 @@ export class PagerRoom implements DurableObject {
   constructor(state: DurableObjectState) {
     this.state = state
     this.html = renderPage()
-    this.state.getWebSockets().forEach(ws => ws.accept())
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -68,9 +67,7 @@ export class PagerRoom implements DurableObject {
   }
 
   webSocketMessage() {}
-  webSocketClose(ws: WebSocket) {
-    ws.close()
-  }
+  webSocketClose() {}
   webSocketError() {}
 }
 
