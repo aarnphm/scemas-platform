@@ -126,7 +126,7 @@ enum DevCommands {
     Desktop,
     /// continuously emit simulated sensor readings into the ingest pipeline
     Seed(SeedArgs),
-    /// run the webhook echo script with passthrough arguments
+    /// run the pager (webhook echo with web UI) with passthrough arguments
     Webhook(PassthroughArgs),
     /// run formatter, clippy, and dashboard typecheck
     Check,
@@ -548,7 +548,16 @@ async fn handle_dev(args: DevCommandArgs, root: &Path, debug: bool) -> Result<()
         DevCommands::Seed(args) => seed::run(root, args).await,
         DevCommands::Webhook(args) => {
             ensure_first_time_setup(root)?;
-            run_script(root, "webhook-echo.ts", &args.args)
+            let mut bun_args = vec![
+                OsString::from("--filter"),
+                OsString::from("@scemas/pager"),
+                OsString::from("dev"),
+            ];
+            if !args.args.is_empty() {
+                bun_args.push(OsString::from("--"));
+                bun_args.extend(args.args.iter().map(OsString::from));
+            }
+            run_checked(root, "bun", &bun_args)
         }
         DevCommands::Check => {
             ensure_first_time_setup(root)?;
@@ -1392,14 +1401,7 @@ fn postgres_port() -> String {
     env::var("PGPORT").unwrap_or_else(|_| "5432".to_owned())
 }
 
-fn run_script(root: &Path, script_name: &str, passthrough_args: &[String]) -> Result<(), CliError> {
-    let mut args = vec![
-        OsString::from("run"),
-        root.join("scripts").join(script_name).into_os_string(),
-    ];
-    args.extend(passthrough_args.iter().map(OsString::from));
-    run_checked(root, "bun", &args)
-}
+
 
 fn run_checked(root: &Path, program: &str, args: &[OsString]) -> Result<(), CliError> {
     require_command(program)?;

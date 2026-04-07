@@ -1,0 +1,12 @@
+name = "scemas-pager"
+main = "src/worker.ts"
+compatibility_date = "2025-05-05"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "PAGER"
+class_name = "PagerRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["PagerRoom"]

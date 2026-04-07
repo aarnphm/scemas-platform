@@ -16,8 +16,8 @@
     "db:generate": "bun --filter @scemas/db generate",
     "db:sync": "bun --filter @scemas/db sync-desktop-schema",
     "db:studio": "bun --filter @scemas/db studio",
-    "cf:types": "bun --filter @scemas/api cf:types && bun --filter @scemas/dashboard cf:types",
-    "cf:deploy": "bun --filter @scemas/api cf:deploy && bun --filter @scemas/dashboard cf:deploy"
+    "cf:types": "bun --filter @scemas/api cf:types && bun --filter @scemas/dashboard cf:types && bun --filter @scemas/pager cf:types",
+    "cf:deploy": "bun --filter @scemas/api cf:deploy && bun --filter @scemas/dashboard cf:deploy && bun --filter @scemas/pager cf:deploy"
   },
   "devDependencies": {
     "@types/bun": "^1.3.11",

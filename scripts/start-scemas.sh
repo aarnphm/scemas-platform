@@ -142,7 +142,7 @@ scemas-seed() {
 }
 
 scemas-webhook() {
-  (cd "$SCEMAS_ROOT" && bun run scripts/webhook-echo.ts "$@")
+  (cd "$SCEMAS_ROOT" && bun --filter @scemas/pager dev -- "$@")
 }
 
 scemas-check() {
